@@ -1,0 +1,28 @@
+# Compiled class files
+application-local.properties
+# Application specific
+
+mvnw.cmd
+mvnw
+.mvn/
+# Maven specific
+
+Thumbs.db
+.DS_Store
+# OS specific files
+
+.project
+.classpath
+.settings/
+.vscode/
+*.iws
+*.iml
+.idea/
+# IDE specific files
+
+*.log
+# Log files
+
+target/
+*.class
+
