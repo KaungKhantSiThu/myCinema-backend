@@ -6,6 +6,7 @@ import com.kkst.mycinema.dto.ShowResponse;
 import com.kkst.mycinema.dto.ShowSeatsResponse;
 import com.kkst.mycinema.entity.Show;
 import com.kkst.mycinema.entity.ShowSeat;
+import com.kkst.mycinema.exception.ShowNotFoundException;
 import com.kkst.mycinema.repository.ShowRepository;
 import com.kkst.mycinema.repository.ShowSeatRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +46,7 @@ public class ShowService {
     @Cacheable(value = CacheConfig.SHOW_SEATS_CACHE, key = "#showId")
     public ShowSeatsResponse getShowSeats(Long showId) {
         var show = showRepository.findById(showId)
-                .orElseThrow(() -> new RuntimeException("Show not found with id: " + showId));
+                .orElseThrow(() -> new ShowNotFoundException(showId));
 
         var showSeats = showSeatRepository.findByShowId(showId);
 

@@ -3,6 +3,7 @@ package com.kkst.mycinema.service;
 import com.kkst.mycinema.config.CacheConfig;
 import com.kkst.mycinema.dto.*;
 import com.kkst.mycinema.entity.*;
+import com.kkst.mycinema.exception.*;
 import com.kkst.mycinema.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +54,7 @@ public class AdminService {
         log.info("Updating movie with ID: {}", id);
 
         var movie = movieRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Movie not found"));
+                .orElseThrow(() -> new MovieNotFoundException(id));
 
         movie.setTitle(request.title());
         movie.setDurationMinutes(request.durationMinutes());
@@ -71,7 +72,7 @@ public class AdminService {
         log.info("Deleting movie with ID: {}", id);
 
         if (!movieRepository.existsById(id)) {
-            throw new RuntimeException("Movie not found");
+            throw new MovieNotFoundException(id);
         }
 
         // Check if movie has upcoming shows
@@ -80,7 +81,7 @@ public class AdminService {
                 .toList();
 
         if (!upcomingShows.isEmpty()) {
-            throw new RuntimeException("Cannot delete movie with upcoming shows");
+            throw new ResourceConflictException("Cannot delete movie with upcoming shows");
         }
 
         movieRepository.deleteById(id);
@@ -94,14 +95,14 @@ public class AdminService {
         log.info("Creating new show for movie ID: {}", request.movieId());
 
         var movie = movieRepository.findById(request.movieId())
-                .orElseThrow(() -> new RuntimeException("Movie not found"));
+                .orElseThrow(() -> new MovieNotFoundException(request.movieId()));
 
         var hall = hallRepository.findById(request.hallId())
-                .orElseThrow(() -> new RuntimeException("Hall not found"));
+                .orElseThrow(() -> new HallNotFoundException(request.hallId()));
 
         // Validate show times
         if (request.endTime().isBefore(request.startTime())) {
-            throw new RuntimeException("End time must be after start time");
+            throw new InvalidBookingException("End time must be after start time");
         }
 
         var show = Show.builder()
@@ -140,7 +141,7 @@ public class AdminService {
         log.info("Deleting show with ID: {}", id);
 
         var show = showRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Show not found"));
+                .orElseThrow(() -> new ShowNotFoundException(id));
 
         // Check if show has any bookings
         var bookings = bookingRepository.findAll().stream()
@@ -149,7 +150,7 @@ public class AdminService {
                 .toList();
 
         if (!bookings.isEmpty()) {
-            throw new RuntimeException("Cannot delete show with confirmed bookings");
+            throw new ResourceConflictException("Cannot delete show with confirmed bookings");
         }
 
         showRepository.delete(show);
@@ -225,7 +226,7 @@ public class AdminService {
         log.info("Generating occupancy report for show ID: {}", showId);
 
         var show = showRepository.findById(showId)
-                .orElseThrow(() -> new RuntimeException("Show not found"));
+                .orElseThrow(() -> new ShowNotFoundException(showId));
 
         var showSeats = showSeatRepository.findByShowId(showId);
         var totalSeats = showSeats.size();

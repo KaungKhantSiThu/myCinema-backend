@@ -8,7 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "bookings")
+@Table(name = "bookings", indexes = {
+        @Index(name = "idx_booking_user", columnList = "user_id"),
+        @Index(name = "idx_booking_show", columnList = "show_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -38,6 +41,9 @@ public class Booking {
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(name = "transaction_id", length = 255)
+    private String transactionId;
+
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookingSeat> bookingSeats = new ArrayList<>();
@@ -46,4 +52,3 @@ public class Booking {
         CONFIRMED, CANCELLED
     }
 }
-

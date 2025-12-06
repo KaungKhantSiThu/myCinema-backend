@@ -1,6 +1,7 @@
 package com.kkst.mycinema.service;
 
 import com.kkst.mycinema.entity.*;
+import com.kkst.mycinema.exception.ShowNotFoundException;
 import com.kkst.mycinema.repository.ShowRepository;
 import com.kkst.mycinema.repository.ShowSeatRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -151,7 +152,7 @@ class ShowServiceTest {
         when(showRepository.findById(999L)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThrows(RuntimeException.class, () -> showService.getShowSeats(999L));
+        assertThrows(ShowNotFoundException.class, () -> showService.getShowSeats(999L));
     }
 
     @Test

@@ -5,7 +5,11 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "shows")
+@Table(name = "shows", indexes = {
+        @Index(name = "idx_show_movie", columnList = "movie_id"),
+        @Index(name = "idx_show_time", columnList = "start_time, end_time"),
+        @Index(name = "idx_show_hall", columnList = "hall_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,4 +35,3 @@ public class Show {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 }
-

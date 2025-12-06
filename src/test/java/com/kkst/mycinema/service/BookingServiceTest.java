@@ -1,8 +1,13 @@
 package com.kkst.mycinema.service;
 
+import com.kkst.mycinema.config.MetricsConfig;
 import com.kkst.mycinema.dto.BookingRequest;
 import com.kkst.mycinema.entity.*;
+import com.kkst.mycinema.exception.*;
+import com.kkst.mycinema.notification.NotificationManager;
+import com.kkst.mycinema.payment.PaymentService;
 import com.kkst.mycinema.repository.*;
+import io.micrometer.core.instrument.Timer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -38,6 +44,24 @@ class BookingServiceTest {
     @Mock
     private BookingSeatRepository bookingSeatRepository;
 
+    @Mock
+    private SeatHoldRepository seatHoldRepository;
+
+    @Mock
+    private MetricsConfig metricsConfig;
+
+    @Mock
+    private PaymentService paymentService;
+
+    @Mock
+    private NotificationManager notificationManager;
+
+    @Mock
+    private Timer timer;
+
+    @Mock
+    private io.micrometer.core.instrument.Counter counter;
+
     @InjectMocks
     private BookingService bookingService;
 
@@ -52,9 +76,19 @@ class BookingServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Mock metrics timer and counters with lenient() since they aren't used in all tests
+        lenient().when(metricsConfig.getBookingDurationTimer()).thenReturn(timer);
+        lenient().when(metricsConfig.getBookingFailureCounter()).thenReturn(counter);
+        lenient().when(metricsConfig.getBookingSuccessCounter()).thenReturn(counter);
+        lenient().when(timer.record(any(Supplier.class))).thenAnswer(invocation -> {
+            Supplier<?> supplier = invocation.getArgument(0);
+            return supplier.get();
+        });
+
         // Create test user
         testUser = User.builder()
                 .id(1L)
+                .name("Test User")
                 .email("test@example.com")
                 .password("hashedPassword")
                 .roles("ROLE_USER")
@@ -146,7 +180,7 @@ class BookingServiceTest {
                 .build();
 
         when(bookingRepository.save(any(Booking.class))).thenReturn(savedBooking);
-        when(showSeatRepository.save(any(ShowSeat.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(showSeatRepository.saveAll(anyList())).thenAnswer(i -> i.getArguments()[0]);
 
         // Act
         var response = bookingService.bookSeats(request, "test@example.com");
@@ -160,8 +194,8 @@ class BookingServiceTest {
         assertEquals(new BigDecimal("30.00"), response.totalAmount());
         assertEquals("CONFIRMED", response.status());
 
-        // Verify seat status was updated to BOOKED
-        verify(showSeatRepository, times(2)).save(any(ShowSeat.class));
+        // Verify seat status was updated to BOOKED via saveAll
+        verify(showSeatRepository).saveAll(anyList());
         assertEquals(ShowSeat.SeatStatus.BOOKED, testShowSeat1.getStatus());
         assertEquals(ShowSeat.SeatStatus.BOOKED, testShowSeat2.getStatus());
     }
@@ -177,10 +211,10 @@ class BookingServiceTest {
         when(showRepository.findById(999L)).thenReturn(Optional.empty());
 
         // Act & Assert
-        var exception = assertThrows(RuntimeException.class,
+        var exception = assertThrows(ShowNotFoundException.class,
             () -> bookingService.bookSeats(request, "test@example.com"));
 
-        assertEquals("Show not found", exception.getMessage());
+        assertEquals("Show not found with ID: 999", exception.getMessage());
     }
 
     @Test
@@ -202,7 +236,7 @@ class BookingServiceTest {
         when(showRepository.findById(1L)).thenReturn(Optional.of(pastShow));
 
         // Act & Assert
-        var exception = assertThrows(RuntimeException.class,
+        var exception = assertThrows(InvalidBookingException.class,
             () -> bookingService.bookSeats(request, "test@example.com"));
 
         assertEquals("Cannot book seats for past shows", exception.getMessage());
@@ -220,10 +254,10 @@ class BookingServiceTest {
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
 
         // Act & Assert
-        var exception = assertThrows(RuntimeException.class,
+        var exception = assertThrows(UserNotFoundException.class,
             () -> bookingService.bookSeats(request, "test@example.com"));
 
-        assertEquals("User not found", exception.getMessage());
+        assertTrue(exception.getMessage().contains("User not found"));
     }
 
     @Test
@@ -265,10 +299,10 @@ class BookingServiceTest {
         when(showSeatRepository.findByShowIdAndIdIn(1L, List.of(1L, 2L))).thenReturn(showSeats);
 
         // Act & Assert
-        var exception = assertThrows(RuntimeException.class,
+        var exception = assertThrows(SeatUnavailableException.class,
             () -> bookingService.bookSeats(request, "test@example.com"));
 
-        assertEquals("One or more selected seats are not available", exception.getMessage());
+        assertTrue(exception.getMessage().contains("seats are no longer available"));
     }
 
     @Test
@@ -322,10 +356,10 @@ class BookingServiceTest {
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
 
         // Act & Assert
-        var exception = assertThrows(RuntimeException.class,
+        var exception = assertThrows(UserNotFoundException.class,
             () -> bookingService.getUserBookings("test@example.com"));
 
-        assertEquals("User not found", exception.getMessage());
+        assertTrue(exception.getMessage().contains("User not found"));
     }
 }
 

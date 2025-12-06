@@ -3,10 +3,11 @@ package com.kkst.mycinema.controller;
 import com.kkst.mycinema.dto.BookingRequest;
 import com.kkst.mycinema.dto.BookingResponse;
 import com.kkst.mycinema.dto.CancellationResponse;
+import com.kkst.mycinema.dto.PaymentConfirmationRequest;
+import com.kkst.mycinema.dto.SeatHoldResponse;
 import com.kkst.mycinema.service.BookingService;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -32,15 +33,97 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    @PostMapping
+    @PostMapping("/hold")
+    @RateLimiter(name = "booking")
     @Operation(
-            summary = "Book seats for a show",
-            description = "Books one or more seats for a movie show. Uses optimistic locking to prevent double-booking."
+            summary = "Hold seats temporarily",
+            description = "Holds seats for a limited time (default 10 minutes) while user completes payment. " +
+                         "Held seats are automatically released if not confirmed."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Seats held successfully"),
+            @ApiResponse(responseCode = "409", description = "Seats already held or booked"),
+            @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
+    })
+    public ResponseEntity<SeatHoldResponse> holdSeats(
+            @Valid @RequestBody BookingRequest request,
+            Authentication authentication) {
+        var userEmail = authentication.getName();
+        var response = bookingService.holdSeats(request, userEmail);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/confirm-with-payment")
+    @RateLimiter(name = "booking")
+    @Operation(
+            summary = "Confirm held seats with payment (Production)",
+            description = "Confirms a seat hold after processing payment. This is the recommended production endpoint. " +
+                         "Must be called before hold expires. Sends confirmation email on success."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Booking confirmed and payment processed successfully"),
+            @ApiResponse(responseCode = "400", description = "Hold expired or invalid"),
+            @ApiResponse(responseCode = "402", description = "Payment failed"),
+            @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
+    })
+    public ResponseEntity<BookingResponse> confirmBookingWithPayment(
+            @Valid @RequestBody PaymentConfirmationRequest request,
+            Authentication authentication) {
+        var userEmail = authentication.getName();
+        var response = bookingService.confirmHoldWithPayment(request, userEmail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/confirm/{holdToken}")
+    @RateLimiter(name = "booking")
+    @Operation(
+            summary = "Confirm held seats (Legacy/Testing)",
+            description = "Confirms a seat hold without payment processing. Use /confirm-with-payment for production."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Booking confirmed successfully"),
+            @ApiResponse(responseCode = "400", description = "Hold expired or invalid"),
+            @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
+    })
+    @Deprecated
+    public ResponseEntity<BookingResponse> confirmBooking(
+            @PathVariable String holdToken,
+            Authentication authentication) {
+        var userEmail = authentication.getName();
+        var response = bookingService.confirmHold(holdToken, userEmail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @DeleteMapping("/hold/{holdToken}")
+    @Operation(
+            summary = "Release held seats",
+            description = "Releases seats that were previously held, making them available again."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Seats released successfully"),
+            @ApiResponse(responseCode = "404", description = "Hold not found or already expired")
+    })
+    public ResponseEntity<Void> releaseHold(
+            @PathVariable String holdToken,
+            Authentication authentication) {
+        var userEmail = authentication.getName();
+        bookingService.releaseHold(holdToken, userEmail);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping
+    @RateLimiter(name = "booking")
+    @Operation(
+            summary = "Book seats directly (legacy)",
+            description = "Books one or more seats for a movie show directly without hold. " +
+                         "Uses optimistic locking to prevent double-booking. " +
+                         "Consider using /hold + /confirm for better UX."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Booking created successfully"),
             @ApiResponse(responseCode = "409", description = "Seats already booked by another user"),
-            @ApiResponse(responseCode = "400", description = "Invalid request")
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
     })
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest request,

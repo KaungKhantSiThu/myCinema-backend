@@ -40,6 +40,247 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
+    // =====================================================
+    // Custom Exception Handlers - NOT_FOUND (404)
+    // =====================================================
+
+    /**
+     * Handle booking not found
+     */
+    @ExceptionHandler(BookingNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleBookingNotFound(
+            BookingNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Booking not found: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Handle show not found
+     */
+    @ExceptionHandler(ShowNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleShowNotFound(
+            ShowNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Show not found: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Handle user not found
+     */
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleUserNotFound(
+            UserNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("User not found: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Handle movie not found
+     */
+    @ExceptionHandler(MovieNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMovieNotFound(
+            MovieNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Movie not found: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Handle hall not found
+     */
+    @ExceptionHandler(HallNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleHallNotFound(
+            HallNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Hall not found: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    // =====================================================
+    // Custom Exception Handlers - CONFLICT (409)
+    // =====================================================
+
+    /**
+     * Handle seat unavailable (already booked)
+     */
+    @ExceptionHandler(SeatUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleSeatUnavailable(
+            SeatUnavailableException ex,
+            HttpServletRequest request) {
+
+        log.warn("Seat unavailable: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    /**
+     * Handle email already exists
+     */
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
+            EmailAlreadyExistsException ex,
+            HttpServletRequest request) {
+
+        log.warn("Email already exists: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    /**
+     * Handle resource conflict (e.g., deleting movie with shows)
+     */
+    @ExceptionHandler(ResourceConflictException.class)
+    public ResponseEntity<ErrorResponse> handleResourceConflict(
+            ResourceConflictException ex,
+            HttpServletRequest request) {
+
+        log.warn("Resource conflict: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    // =====================================================
+    // Custom Exception Handlers - FORBIDDEN (403)
+    // =====================================================
+
+    /**
+     * Handle unauthorized booking access
+     */
+    @ExceptionHandler(UnauthorizedBookingAccessException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorizedBookingAccess(
+            UnauthorizedBookingAccessException ex,
+            HttpServletRequest request) {
+
+        log.warn("Unauthorized booking access: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.FORBIDDEN.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    // =====================================================
+    // Custom Exception Handlers - BAD_REQUEST (400)
+    // =====================================================
+
+    /**
+     * Handle invalid booking operations
+     */
+    @ExceptionHandler(InvalidBookingException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidBooking(
+            InvalidBookingException ex,
+            HttpServletRequest request) {
+
+        log.warn("Invalid booking: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    // =====================================================
+    // Custom Exception Handlers - PAYMENT_REQUIRED (402)
+    // =====================================================
+
+    /**
+     * Handle payment failures
+     */
+    @ExceptionHandler(PaymentFailedException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentFailed(
+            PaymentFailedException ex,
+            HttpServletRequest request) {
+
+        log.error("Payment failed: {} - {}", ex.getErrorCode(), ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.PAYMENT_REQUIRED.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .errors(Map.of("errorCode", ex.getErrorCode()))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(errorResponse);
+    }
+
     /**
      * Handle validation errors
      */
@@ -67,6 +308,46 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle seat hold expired exceptions
+     */
+    @ExceptionHandler(SeatHoldExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleSeatHoldExpired(
+            SeatHoldExpiredException ex,
+            HttpServletRequest request) {
+
+        log.warn("Seat hold expired: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    /**
+     * Handle rate limit exceeded (Resilience4j)
+     */
+    @ExceptionHandler(io.github.resilience4j.ratelimiter.RequestNotPermitted.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(
+            io.github.resilience4j.ratelimiter.RequestNotPermitted ex,
+            HttpServletRequest request) {
+
+        log.warn("Rate limit exceeded for: {}", request.getRequestURI());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.TOO_MANY_REQUESTS.value())
+                .message("Too many requests. Please try again later.")
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+    }
+
+    /**
      * Handle authentication errors
      */
     @ExceptionHandler(BadCredentialsException.class)
@@ -85,7 +366,27 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle generic runtime exceptions
+     * Handle invalid token exceptions (refresh token, etc.)
+     */
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidToken(
+            InvalidTokenException ex,
+            HttpServletRequest request) {
+
+        log.warn("Invalid token: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    /**
+     * Handle generic runtime exceptions (fallback for unhandled RuntimeExceptions)
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(

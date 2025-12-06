@@ -49,17 +49,19 @@ class AuthControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         registerRequest = RegisterRequest.builder()
+                .name("New User")
                 .email("newuser@example.com")
-                .password("password123")
+                .password("Password1!")
                 .build();
 
         loginRequest = LoginRequest.builder()
                 .email("user@example.com")
-                .password("password123")
+                .password("Password1!")
                 .build();
 
         authResponse = AuthResponse.builder()
                 .token("jwt-token-here")
+                .refreshToken("refresh-token-here")
                 .email("user@example.com")
                 .message("Success")
                 .build();
@@ -75,7 +77,7 @@ class AuthControllerIntegrationTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.token").value("jwt-token-here"))
                 .andExpect(jsonPath("$.email").value("user@example.com"));
 
@@ -93,7 +95,7 @@ class AuthControllerIntegrationTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -125,15 +127,16 @@ class AuthControllerIntegrationTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     void register_InvalidEmailFormat_ReturnsBadRequest() throws Exception {
         // Arrange
         var invalidRequest = RegisterRequest.builder()
+                .name("Test User")
                 .email("invalid-email")
-                .password("password123")
+                .password("Password1!")
                 .build();
 
         // Act & Assert
@@ -148,6 +151,7 @@ class AuthControllerIntegrationTest {
     void register_MissingPassword_ReturnsBadRequest() throws Exception {
         // Arrange
         var invalidRequest = RegisterRequest.builder()
+                .name("Test User")
                 .email("user@example.com")
                 .password(null)
                 .build();

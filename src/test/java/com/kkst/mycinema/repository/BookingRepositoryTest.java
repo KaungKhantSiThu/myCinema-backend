@@ -29,6 +29,7 @@ class BookingRepositoryTest {
     void setUp() {
         // Create user
         testUser = User.builder()
+                .name("Test User")
                 .email("test@example.com")
                 .password("password")
                 .roles("ROLE_USER")

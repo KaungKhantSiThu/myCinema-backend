@@ -16,7 +16,7 @@ public interface ShowRepository extends JpaRepository<Show, Long> {
     List<Show> findByMovieId(Long movieId);
 
     @Query("SELECT s FROM Show s WHERE s.movie.id = :movieId " +
-           "AND DATE(s.startTime) = :date ORDER BY s.startTime")
+           "AND CAST(s.startTime AS date) = :date ORDER BY s.startTime")
     List<Show> findByMovieIdAndDate(@Param("movieId") Long movieId,
                                      @Param("date") LocalDate date);
 
