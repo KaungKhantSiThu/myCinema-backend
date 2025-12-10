@@ -60,6 +60,7 @@ public class MovieService {
                 .title(movie.getTitle())
                 .durationMinutes(movie.getDurationMinutes())
                 .genre(movie.getGenre())
+                .description(movie.getDescription())
                 .build();
     }
 }

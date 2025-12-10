@@ -25,6 +25,9 @@ public class Movie {
     @Column(nullable = false, length = 50)
     private String genre;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     /**
      * The external data source from which this movie was imported.
      * Examples: "TMDb", "IMDb", "Manual", etc.
@@ -41,4 +44,3 @@ public class Movie {
     @Column(name = "external_id", length = 100)
     private String externalId;
 }
-
