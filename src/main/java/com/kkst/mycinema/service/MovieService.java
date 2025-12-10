@@ -26,8 +26,31 @@ public class MovieService {
                 .toList();
     }
 
-    public Page<MovieResponse> getMoviesPaginated(Pageable pageable) {
-        return movieRepository.findAll(pageable)
+    public MovieResponse getMovieById(Long id) {
+        return movieRepository.findById(id)
+                .map(this::mapToResponse)
+                .orElseThrow(
+                        () -> new com.kkst.mycinema.exception.MovieNotFoundException("Movie not found with id: " + id));
+    }
+
+    public Page<MovieResponse> getMoviesPaginated(String query, String genre, Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<com.kkst.mycinema.entity.Movie> spec = (root, criteriaQuery,
+                cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+
+            if (query != null && !query.trim().isEmpty()) {
+                String likePattern = "%" + query.trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("title")), likePattern));
+            }
+
+            if (genre != null && !genre.trim().isEmpty()) {
+                predicates.add(cb.equal(cb.lower(root.get("genre")), genre.trim().toLowerCase()));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return movieRepository.findAll(spec, pageable)
                 .map(this::mapToResponse);
     }
 
@@ -40,5 +63,3 @@ public class MovieService {
                 .build();
     }
 }
-
-

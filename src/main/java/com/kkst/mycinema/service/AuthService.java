@@ -72,6 +72,8 @@ public class AuthService {
                 .token(accessToken)
                 .refreshToken(refreshToken)
                 .email(user.getEmail())
+                .name(user.getName())
+                .role(user.getRoles())
                 .message("User registered successfully")
                 .build();
     }
@@ -81,9 +83,7 @@ public class AuthService {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.email(),
-                        request.password()
-                )
-        );
+                        request.password()));
 
         // If authentication is successful, generate tokens
         var accessToken = jwtUtil.generateToken(request.email());
@@ -91,10 +91,15 @@ public class AuthService {
 
         log.info("User logged in successfully: {}", request.email());
 
+        var user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new com.kkst.mycinema.exception.UserNotFoundException("User not found"));
+
         return AuthResponse.builder()
                 .token(accessToken)
                 .refreshToken(refreshToken)
-                .email(request.email())
+                .email(user.getEmail())
+                .name(user.getName())
+                .role(user.getRoles())
                 .message("Login successful")
                 .build();
     }
@@ -131,12 +136,15 @@ public class AuthService {
 
         log.info("Access token refreshed for user: {}", username);
 
+        var user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new InvalidTokenException("User not found"));
+
         return AuthResponse.builder()
                 .token(newAccessToken)
                 .email(username)
+                .name(user.getName())
+                .role(user.getRoles())
                 .message("Token refreshed successfully")
                 .build();
     }
 }
-
-
