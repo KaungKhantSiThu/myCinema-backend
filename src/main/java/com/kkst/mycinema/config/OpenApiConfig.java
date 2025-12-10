@@ -25,14 +25,14 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         String description = "A scalable, thread-safe cinema ticket booking system with optimistic locking for concurrency control.\n\n" +
                 "**Key Features:**\n" +
-                "- 🎬 Movie and Show Management\n" +
-                "- 🎫 Seat Booking with Optimistic Locking\n" +
-                "- 🔒 Seat Hold/Lock Mechanism\n" +
-                "- 👤 User Authentication with JWT\n" +
-                "- 👨‍💼 Admin Dashboard and Revenue Reporting\n";
+                "- Movie and Show Management\n" +
+                "- Seat Booking with Optimistic Locking\n" +
+                "- Seat Hold/Lock Mechanism\n" +
+                "- User Authentication with JWT\n" +
+                "- Admin Dashboard and Revenue Reporting\n";
         
         if (tmdbEnabled) {
-            description += "- 🎥 **TMDb Integration** - Search and import movies from The Movie Database\n";
+            description += "- **TMDb Integration** - Search and import movies from The Movie Database\n";
         } else {
             description += "- ⚠️  TMDb Integration is **disabled**. Set TMDB_API_KEY to enable movie import features.\n";
         }
@@ -47,7 +47,7 @@ public class OpenApiConfig {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("🎬 Cinema Booking System API")
+                        .title("Cinema Booking System API")
                         .version("1.0.0")
                         .description(description)
                         .contact(new Contact()

@@ -79,11 +79,14 @@ public class MovieImportService {
                 .title(externalData.title())
                 .durationMinutes(externalData.runtime() != null ? externalData.runtime() : 120)
                 .genre(genre)
+                .externalSource(movieDataSource.getSourceName())
+                .externalId(externalData.externalId())
                 .build();
 
         movie = movieRepository.save(movie);
 
-        log.info("Movie imported successfully: {} (ID: {})", movie.getTitle(), movie.getId());
+        log.info("Movie imported successfully: {} (ID: {}) from {} (external ID: {})", 
+                movie.getTitle(), movie.getId(), movie.getExternalSource(), movie.getExternalId());
 
         return mapToMovieResponse(movie);
     }

@@ -421,6 +421,77 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle missing required request parameters
+     */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestParameter(
+            org.springframework.web.bind.MissingServletRequestParameterException ex,
+            HttpServletRequest request) {
+
+        log.warn("Missing request parameter: {}", ex.getMessage());
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(String.format("Required parameter '%s' is missing", ex.getParameterName()))
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    /**
+     * Handle constraint violations (e.g., @NotBlank, @Positive validation on @RequestParam)
+     */
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+            jakarta.validation.ConstraintViolationException ex,
+            HttpServletRequest request) {
+
+        log.warn("Constraint violation: {}", ex.getMessage());
+
+        // Extract the first constraint violation message
+        String message = ex.getConstraintViolations().stream()
+                .findFirst()
+                .map(violation -> violation.getMessage())
+                .orElse("Validation failed");
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    /**
+     * Handle method argument type mismatch (e.g., passing "abc" for integer parameter)
+     */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+
+        log.warn("Method argument type mismatch: {}", ex.getMessage());
+
+        String message = String.format("Invalid value '%s' for parameter '%s'. Expected type: %s",
+                ex.getValue(),
+                ex.getName(),
+                ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown");
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    /**
      * Handle generic runtime exceptions (fallback for unhandled RuntimeExceptions)
      */
     @ExceptionHandler(RuntimeException.class)

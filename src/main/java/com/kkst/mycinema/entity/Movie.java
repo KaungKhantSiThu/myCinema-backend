@@ -24,5 +24,21 @@ public class Movie {
 
     @Column(nullable = false, length = 50)
     private String genre;
+
+    /**
+     * The external data source from which this movie was imported.
+     * Examples: "TMDb", "IMDb", "Manual", etc.
+     * Null indicates the movie was created manually in the system.
+     */
+    @Column(name = "external_source", length = 50)
+    private String externalSource;
+
+    /**
+     * The ID of this movie in the external data source.
+     * Used to track the origin and prevent duplicate imports.
+     * Null indicates the movie was created manually in the system.
+     */
+    @Column(name = "external_id", length = 100)
+    private String externalId;
 }
 

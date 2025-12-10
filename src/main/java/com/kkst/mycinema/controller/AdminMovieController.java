@@ -35,7 +35,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Validated
-@Tag(name = "🎥 Admin - TMDb Movie Import", description = "Admin-only endpoints for searching and importing movies from The Movie Database (TMDb). Requires ROLE_ADMIN and valid JWT token.")
+@Tag(name = "Admin - TMDb Movie Import", description = "Admin-only endpoints for searching and importing movies from The Movie Database (TMDb). Requires ROLE_ADMIN and valid JWT token.")
 @ConditionalOnBean(MovieImportService.class)
 public class AdminMovieController {
 
@@ -51,7 +51,7 @@ public class AdminMovieController {
     @GetMapping("/search")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
-            summary = "🔍 Search Movies from TMDb",
+            summary = "Search Movies from TMDb",
             description = "Search for movies in The Movie Database (TMDb) by title, keyword, or actor name. " +
                          "This endpoint allows admins to browse TMDb's extensive movie catalog before importing them into the cinema system.\n\n" +
                          "**Requirements:**\n" +
@@ -133,7 +133,7 @@ public class AdminMovieController {
     @PostMapping("/import")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
-            summary = "📥 Import Movie from TMDb",
+            summary = "Import Movie from TMDb",
             description = "Import a movie from The Movie Database (TMDb) into the cinema's local database. " +
                          "After importing, the movie becomes available for creating shows and bookings.\n\n" +
                          "**Requirements:**\n" +

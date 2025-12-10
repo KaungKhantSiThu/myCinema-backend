@@ -116,7 +116,7 @@ public class SmtpEmailService implements NotificationService {
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🎬 MyCinema</h1>
+                        <h1>MyCinema</h1>
                         <h2>Booking Confirmation</h2>
                     </div>
                     <div class="content">
@@ -189,7 +189,7 @@ public class SmtpEmailService implements NotificationService {
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🎬 MyCinema</h1>
+                        <h1>MyCinema</h1>
                         <h2>Booking Cancelled</h2>
                     </div>
                     <div class="content">

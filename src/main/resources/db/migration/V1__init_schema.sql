@@ -34,7 +34,10 @@ CREATE TABLE movies (
     title VARCHAR(255) NOT NULL,
     duration_minutes INT NOT NULL,
     genre VARCHAR(50) NOT NULL,
-    CONSTRAINT chk_duration_positive CHECK (duration_minutes > 0)
+    external_source VARCHAR(50),
+    external_id VARCHAR(100),
+    CONSTRAINT chk_duration_positive CHECK (duration_minutes > 0),
+    CONSTRAINT uq_external_source_id UNIQUE (external_source, external_id)
 );
 
 -- B. Dynamic Data (The Schedule)
@@ -155,4 +158,8 @@ CREATE INDEX idx_seat_holds_show ON seat_holds(show_id);
 
 -- seats indexes
 CREATE INDEX idx_seats_status ON seats(status);
+
+-- movies indexes
+CREATE INDEX idx_movies_external_source ON movies(external_source);
+CREATE INDEX idx_movies_external_id ON movies(external_source, external_id);
 

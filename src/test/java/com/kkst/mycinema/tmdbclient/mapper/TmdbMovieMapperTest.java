@@ -20,10 +20,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class TmdbMovieMapperTest {
 
     private TmdbMovieMapper mapper;
+    private TmdbGenreMapper genreMapper;
 
     @BeforeEach
     void setUp() {
-        mapper = new TmdbMovieMapper();
+        genreMapper = new TmdbGenreMapper();
+        mapper = new TmdbMovieMapper(genreMapper);
     }
 
     @Test
@@ -55,6 +57,10 @@ class TmdbMovieMapperTest {
         assertEquals(LocalDate.of(2023, 5, 15), result.releaseDate());
         assertNull(result.runtime()); // Not available in search results
         assertEquals(3, result.genres().size());
+        // Verify genres are mapped to names, not IDs
+        assertTrue(result.genres().contains("Action")); // 28
+        assertTrue(result.genres().contains("Adventure")); // 12
+        assertTrue(result.genres().contains("Science Fiction")); // 878
         assertEquals("/poster.jpg", result.posterPath());
         assertEquals("/backdrop.jpg", result.backdropPath());
         assertEquals(8.5, result.voteAverage());

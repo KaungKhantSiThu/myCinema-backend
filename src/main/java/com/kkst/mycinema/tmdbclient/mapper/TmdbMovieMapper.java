@@ -4,6 +4,7 @@ import com.kkst.mycinema.external.ExternalMovieData;
 import com.kkst.mycinema.tmdbclient.model.TmdbGenre;
 import com.kkst.mycinema.tmdbclient.model.TmdbMovie;
 import com.kkst.mycinema.tmdbclient.model.TmdbMovieDetails;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -19,11 +20,15 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 @ConditionalOnProperty(name = "tmdb.api.enabled", havingValue = "true")
 public class TmdbMovieMapper {
 
+    private final TmdbGenreMapper genreMapper;
+
     /**
      * Maps TMDb search movie result to ExternalMovieData.
+     * TMDb search results return genre IDs (as integers) instead of genre names.
      *
      * @param movie The TMDb movie from search results
      * @return ExternalMovieData instance
@@ -35,10 +40,10 @@ public class TmdbMovieMapper {
 
         LocalDate releaseDate = parseReleaseDate(movie.getReleaseDate());
 
-        // For search results, genre IDs are returned as integers
+        // For search results, genre IDs are returned as integers - map them to names
         List<String> genres = movie.getGenreIds() != null
             ? movie.getGenreIds().stream()
-                .map(String::valueOf)
+                .map(genreMapper::mapGenreIdToName)
                 .collect(Collectors.toList())
             : Collections.emptyList();
 

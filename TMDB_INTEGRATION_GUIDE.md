@@ -1,8 +1,8 @@
-# 🎬 TMDb Integration Guide
+# TMDb Integration Guide
 
 This guide explains how to use The Movie Database (TMDb) integration in the Cinema Booking System to search and import movies.
 
-## 📋 Table of Contents
+## Table of Contents
 - [Overview](#overview)
 - [Setup](#setup)
 - [API Endpoints](#api-endpoints)
@@ -10,7 +10,7 @@ This guide explains how to use The Movie Database (TMDb) integration in the Cine
 - [Swagger UI Guide](#swagger-ui-guide)
 - [Troubleshooting](#troubleshooting)
 
-## 🎯 Overview
+## Overview
 
 The TMDb integration allows cinema administrators to:
 - **Search** for movies in The Movie Database catalog
@@ -28,13 +28,13 @@ Admin → AdminMovieController → MovieImportService → TmdbMovieDataSource �
 ```
 
 **Key Features:**
-- ✅ Separate authentication (TMDb API key vs JWT tokens)
-- ✅ Conditional loading (enable/disable via configuration)
-- ✅ Proper error handling and logging
-- ✅ Comprehensive Swagger documentation
-- ✅ Admin-only access with role-based authorization
+- Separate authentication (TMDb API key vs JWT tokens)
+- Conditional loading (enable/disable via configuration)
+- Proper error handling and logging
+- Comprehensive Swagger documentation
+- Admin-only access with role-based authorization
 
-## 🔧 Setup
+## Setup
 
 ### 1. Get TMDb API Key
 
@@ -73,7 +73,7 @@ TMDb Client initialized and ready for use
 TMDb MovieDataSource initialized with custom client
 ```
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Base URL
 ```
@@ -82,12 +82,12 @@ http://localhost:8080/api/admin/movies
 
 ### Authentication
 All endpoints require:
-- ✅ Valid JWT token in Authorization header
-- ✅ ROLE_ADMIN role
+- Valid JWT token in Authorization header
+- ROLE_ADMIN role
 
 ### Endpoints
 
-#### 1. 🔍 Search Movies
+#### 1. Search Movies
 **Endpoint:** `GET /api/admin/movies/search`
 
 **Parameters:**
@@ -122,7 +122,7 @@ All endpoints require:
 
 ---
 
-#### 2. 📥 Import Movie
+#### 2. Import Movie
 **Endpoint:** `POST /api/admin/movies/import`
 
 **Request Body:** `ImportMovieRequest`
@@ -157,7 +157,7 @@ All endpoints require:
 - `404 Not Found` - Movie not found in TMDb with provided ID
 - `502 Bad Gateway` - TMDb API unavailable
 
-## 📖 Usage Workflow
+## Usage Workflow
 
 ### Step-by-Step Guide
 
@@ -258,7 +258,7 @@ The movie is now available to users:
 curl -X GET http://localhost:8080/api/movies
 ```
 
-## 🎨 Swagger UI Guide
+## Swagger UI Guide
 
 ### Accessing Swagger UI
 
@@ -268,12 +268,12 @@ curl -X GET http://localhost:8080/api/movies
 ### Using TMDb Endpoints in Swagger
 
 #### 1. **Authorize**
-- Click the **"Authorize" button** (🔒 icon) at the top right
+- Click the **"Authorize" button** (lock icon) at the top right
 - Enter: `Bearer YOUR_JWT_TOKEN` (include the word "Bearer" and a space)
 - Click "Authorize" then "Close"
 
 #### 2. **Search Movies**
-- Expand **"🎥 Admin - TMDb Movie Import"** section
+- Expand **"Admin - TMDb Movie Import"** section
 - Click **"GET /api/admin/movies/search"**
 - Click **"Try it out"**
 - Enter search query (e.g., "Inception")
@@ -281,7 +281,7 @@ curl -X GET http://localhost:8080/api/movies
 - View response below
 
 #### 3. **Import Movie**
-- Still in **"🎥 Admin - TMDb Movie Import"** section
+- Still in **"Admin - TMDb Movie Import"** section
 - Click **"POST /api/admin/movies/import"**
 - Click **"Try it out"**
 - Copy an `externalId` from search results
@@ -297,17 +297,13 @@ curl -X GET http://localhost:8080/api/movies
 
 ### Swagger Features
 
-✨ **Auto-completion**: Swagger provides examples and schema validation
+- **Auto-completion**: Swagger provides examples and schema validation
+- **Response Samples**: See expected responses for each status code
+- **Request Examples**: Copy-paste ready JSON examples
+- **Error Documentation**: All possible error codes documented
+- **Try It Out**: Test APIs directly from the browser
 
-✨ **Response Samples**: See expected responses for each status code
-
-✨ **Request Examples**: Copy-paste ready JSON examples
-
-✨ **Error Documentation**: All possible error codes documented
-
-✨ **Try It Out**: Test APIs directly from the browser
-
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Issue: Endpoints Not Showing in Swagger
 
@@ -377,14 +373,14 @@ Common log patterns:
 - `Movie imported successfully` - Import completed
 - `TMDb API error` - API communication issue
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [TMDb API Documentation](https://developers.themoviedb.org/3)
 - [Project README](./README.md)
 - [API Documentation](./API_DOCUMENTATION.md)
 - [Deployment Guide](./DEPLOYMENT.md)
 
-## 🎯 Best Practices
+## Best Practices
 
 1. **API Key Security**
    - Never commit API keys to version control
@@ -406,7 +402,7 @@ Common log patterns:
    - Verify movie data before creating shows
    - Keep movie information up to date
 
-## 🤝 Support
+## Support
 
 If you encounter issues:
 1. Check this guide's troubleshooting section
@@ -416,4 +412,4 @@ If you encounter issues:
 
 ---
 
-**Happy Movie Importing! 🎬🍿**
+**Happy Movie Importing!**

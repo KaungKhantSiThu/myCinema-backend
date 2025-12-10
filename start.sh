@@ -12,7 +12,19 @@ fi
 
 # Start PostgreSQL
 echo "📦 Starting PostgreSQL..."
-docker-compose up -d
+# If a container named `cinema_postgres` already exists, start/reuse it instead of recreating
+existing_container_id=$(docker ps -a --filter "name=cinema_postgres" -q)
+if [ -n "$existing_container_id" ]; then
+    # If it's running, reuse it
+    if docker ps --filter "id=$existing_container_id" --filter "status=running" -q >/dev/null 2>&1; then
+        echo "✅ PostgreSQL container already running. Reusing existing container."
+    else
+        echo "🔁 Starting existing PostgreSQL container..."
+        docker start "$existing_container_id"
+    fi
+else
+    docker-compose up -d
+fi
 
 # Wait for PostgreSQL to be ready
 echo "⏳ Waiting for PostgreSQL to be ready..."
