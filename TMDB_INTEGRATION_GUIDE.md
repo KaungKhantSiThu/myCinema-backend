@@ -1,712 +1,419 @@
-# TMDb Integration Implementation Guide
+# 🎬 TMDb Integration Guide
 
-## Overview
-This guide details how to integrate The Movie Database (TMDb) API using the `themoviedbapi` library to replace mock movie data with real movie information.
+This guide explains how to use The Movie Database (TMDb) integration in the Cinema Booking System to search and import movies.
 
-## Prerequisites
+## 📋 Table of Contents
+- [Overview](#overview)
+- [Setup](#setup)
+- [API Endpoints](#api-endpoints)
+- [Usage Workflow](#usage-workflow)
+- [Swagger UI Guide](#swagger-ui-guide)
+- [Troubleshooting](#troubleshooting)
 
-1. **Get TMDb API Key:**
-   - Register at https://www.themoviedb.org/signup
-   - Go to Settings → API → Request an API Key
-   - Choose "Developer" option
-   - Save your API key (v3 auth)
+## 🎯 Overview
 
-2. **Add Maven Dependency:**
-   Add to `pom.xml`:
-   ```xml
-   <!-- TMDb API Client -->
-   <dependency>
-       <groupId>com.github.c-eg</groupId>
-       <artifactId>themoviedbapi</artifactId>
-       <version>2.0.2</version>
-   </dependency>
-   ```
+The TMDb integration allows cinema administrators to:
+- **Search** for movies in The Movie Database catalog
+- **Import** selected movies into the cinema system
+- **Create shows** for imported movies
+- **Manage** movie catalog efficiently
 
-## Implementation Steps
+### Architecture
 
-### Step 1: Enhanced Movie Entity
+The integration follows a clean, modular design:
 
-Update `Movie.java` with TMDb fields:
-
-```java
-@Entity
-@Table(name = "movies")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Movie {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    // TMDb reference (nullable for manually created movies)
-    @Column(name = "tmdb_id", unique = true)
-    private Integer tmdbId;
-
-    // Core info
-    @Column(nullable = false)
-    private String title;
-
-    @Column(name = "duration_minutes", nullable = false)
-    private Integer durationMinutes;
-
-    // Rich metadata from TMDb
-    @Column(length = 2000)
-    private String overview;
-
-    @Column(length = 200)
-    private String tagline;
-
-    @Column(name = "poster_path", length = 200)
-    private String posterPath;
-
-    @Column(name = "backdrop_path", length = 200)
-    private String backdropPath;
-
-    @Column(name = "vote_average")
-    private Double voteAverage;
-
-    @Column(name = "vote_count")
-    private Integer voteCount;
-
-    @Column(name = "release_date")
-    private LocalDate releaseDate;
-
-    @Column(name = "original_language", length = 10)
-    private String originalLanguage;
-
-    // Genres (stored as JSON string or comma-separated)
-    @Column(length = 500)
-    private String genres;
-
-    // Timestamps
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @Column(name = "tmdb_synced_at")
-    private LocalDateTime tmdbSyncedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
-}
+```
+Admin → AdminMovieController → MovieImportService → TmdbMovieDataSource → TmdbClient → TMDb API
+                                                      (Adapter Pattern)
 ```
 
-### Step 2: Database Migration
+**Key Features:**
+- ✅ Separate authentication (TMDb API key vs JWT tokens)
+- ✅ Conditional loading (enable/disable via configuration)
+- ✅ Proper error handling and logging
+- ✅ Comprehensive Swagger documentation
+- ✅ Admin-only access with role-based authorization
 
-Create `V3__enhance_movies_table.sql`:
+## 🔧 Setup
 
-```sql
--- V3: Enhance movies table with TMDb fields
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS tmdb_id INTEGER UNIQUE;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS overview VARCHAR(2000);
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS tagline VARCHAR(200);
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS poster_path VARCHAR(200);
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS backdrop_path VARCHAR(200);
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS vote_average DECIMAL(3,1);
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS vote_count INTEGER;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS release_date DATE;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS original_language VARCHAR(10);
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS genres VARCHAR(500);
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS tmdb_synced_at TIMESTAMP;
+### 1. Get TMDb API Key
 
--- Index for TMDb lookups
-CREATE INDEX IF NOT EXISTS idx_movies_tmdb_id ON movies(tmdb_id);
-```
+1. Go to [The Movie Database](https://www.themoviedb.org/)
+2. Create an account (free)
+3. Navigate to [API Settings](https://www.themoviedb.org/settings/api)
+4. Request an API key (instant approval for personal use)
+5. Copy your API key
 
-### Step 3: Configuration
+### 2. Configure Application
 
-Add to `application.properties`:
-```properties
-# TMDb API Configuration
-tmdb.api.key=${TMDB_API_KEY:your-default-key-for-dev}
-tmdb.api.language=en-US
-tmdb.image.base-url=https://image.tmdb.org/t/p/
-tmdb.image.poster-size=w500
-tmdb.image.backdrop-size=w1280
-```
-
-### Step 4: TMDb Configuration Bean
-
-Create `TmdbConfig.java`:
-
-```java
-package com.kkst.mycinema.config;
-
-import info.movito.themoviedbapi.TmdbApi;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-@Configuration
-public class TmdbConfig {
-
-    @Value("${tmdb.api.key}")
-    private String apiKey;
-
-    @Bean
-    public TmdbApi tmdbApi() {
-        return new TmdbApi(apiKey);
-    }
-}
-```
-
-### Step 5: DTOs for TMDb
-
-Create `TmdbMovieDto.java`:
-
-```java
-package com.kkst.mycinema.dto;
-
-import lombok.Builder;
-import java.time.LocalDate;
-import java.util.List;
-
-@Builder
-public record TmdbMovieDto(
-    Integer tmdbId,
-    String title,
-    String overview,
-    String tagline,
-    Integer runtime,
-    String posterPath,
-    String backdropPath,
-    Double voteAverage,
-    Integer voteCount,
-    LocalDate releaseDate,
-    String originalLanguage,
-    List<String> genres
-) {
-    // Helper to get full poster URL
-    public String getFullPosterUrl(String baseUrl, String size) {
-        return posterPath != null ? baseUrl + size + posterPath : null;
-    }
-    
-    // Helper to get full backdrop URL
-    public String getFullBackdropUrl(String baseUrl, String size) {
-        return backdropPath != null ? baseUrl + size + backdropPath : null;
-    }
-}
-```
-
-Update `MovieResponse.java`:
-
-```java
-package com.kkst.mycinema.dto;
-
-import lombok.Builder;
-import java.time.LocalDate;
-import java.util.List;
-
-@Builder
-public record MovieResponse(
-    Long id,
-    Integer tmdbId,
-    String title,
-    Integer durationMinutes,
-    String overview,
-    String tagline,
-    String posterUrl,
-    String backdropUrl,
-    Double voteAverage,
-    Integer voteCount,
-    LocalDate releaseDate,
-    String originalLanguage,
-    List<String> genres
-) {}
-```
-
-### Step 6: TMDb Service
-
-Create `TmdbService.java`:
-
-```java
-package com.kkst.mycinema.service;
-
-import com.kkst.mycinema.dto.TmdbMovieDto;
-import com.kkst.mycinema.entity.Movie;
-import com.kkst.mycinema.exception.MovieNotFoundException;
-import com.kkst.mycinema.repository.MovieRepository;
-import info.movito.themoviedbapi.TmdbApi;
-import info.movito.themoviedbapi.model.core.MovieResultsPage;
-import info.movito.themoviedbapi.model.movies.MovieDb;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class TmdbService {
-
-    private final TmdbApi tmdbApi;
-    private final MovieRepository movieRepository;
-
-    @Value("${tmdb.api.language:en-US}")
-    private String language;
-
-    @Value("${tmdb.image.base-url}")
-    private String imageBaseUrl;
-
-    @Value("${tmdb.image.poster-size}")
-    private String posterSize;
-
-    @Value("${tmdb.image.backdrop-size}")
-    private String backdropSize;
-
-    /**
-     * Search movies from TMDb API
-     */
-    public List<TmdbMovieDto> searchMovies(String query, int page) {
-        log.info("Searching TMDb for: {}", query);
-        
-        MovieResultsPage results = tmdbApi.getSearch()
-            .searchMovie(query, false, language, null, page);
-        
-        return results.getResults().stream()
-            .map(this::mapToTmdbDto)
-            .toList();
-    }
-
-    /**
-     * Get popular movies from TMDb
-     */
-    public List<TmdbMovieDto> getPopularMovies(int page) {
-        log.info("Fetching popular movies from TMDb");
-        
-        MovieResultsPage results = tmdbApi.getMovies()
-            .getPopularMovies(language, page);
-        
-        return results.getResults().stream()
-            .map(this::mapToTmdbDto)
-            .toList();
-    }
-
-    /**
-     * Get now playing movies from TMDb
-     */
-    public List<TmdbMovieDto> getNowPlayingMovies(int page) {
-        log.info("Fetching now playing movies from TMDb");
-        
-        MovieResultsPage results = tmdbApi.getMovies()
-            .getNowPlayingMovies(language, page, null);
-        
-        return results.getResults().stream()
-            .map(this::mapToTmdbDto)
-            .toList();
-    }
-
-    /**
-     * Get upcoming movies from TMDb
-     */
-    public List<TmdbMovieDto> getUpcomingMovies(int page) {
-        log.info("Fetching upcoming movies from TMDb");
-        
-        MovieResultsPage results = tmdbApi.getMovies()
-            .getUpcoming(language, page, null);
-        
-        return results.getResults().stream()
-            .map(this::mapToTmdbDto)
-            .toList();
-    }
-
-    /**
-     * Get detailed movie info from TMDb
-     */
-    public TmdbMovieDto getMovieDetails(int tmdbId) {
-        log.info("Fetching movie details for TMDb ID: {}", tmdbId);
-        
-        MovieDb movie = tmdbApi.getMovies().getMovie(tmdbId, language);
-        return mapToDetailedTmdbDto(movie);
-    }
-
-    /**
-     * Import a movie from TMDb to local database
-     */
-    @Transactional
-    @CacheEvict(value = "movies", allEntries = true)
-    public Movie importFromTmdb(int tmdbId) {
-        log.info("Importing movie from TMDb ID: {}", tmdbId);
-        
-        // Check if already imported
-        Optional<Movie> existing = movieRepository.findByTmdbId(tmdbId);
-        if (existing.isPresent()) {
-            log.info("Movie already exists with TMDb ID: {}", tmdbId);
-            return existing.get();
-        }
-        
-        // Fetch detailed info from TMDb
-        MovieDb tmdbMovie = tmdbApi.getMovies().getMovie(tmdbId, language);
-        
-        if (tmdbMovie == null) {
-            throw new MovieNotFoundException("Movie not found on TMDb with ID: " + tmdbId);
-        }
-        
-        // Map and save
-        Movie movie = Movie.builder()
-            .tmdbId(tmdbId)
-            .title(tmdbMovie.getTitle())
-            .durationMinutes(tmdbMovie.getRuntime() != null ? tmdbMovie.getRuntime() : 120)
-            .overview(tmdbMovie.getOverview())
-            .tagline(tmdbMovie.getTagline())
-            .posterPath(tmdbMovie.getPosterPath())
-            .backdropPath(tmdbMovie.getBackdropPath())
-            .voteAverage(tmdbMovie.getVoteAverage())
-            .voteCount(tmdbMovie.getVoteCount())
-            .releaseDate(parseReleaseDate(tmdbMovie.getReleaseDate()))
-            .originalLanguage(tmdbMovie.getOriginalLanguage())
-            .genres(extractGenres(tmdbMovie))
-            .tmdbSyncedAt(LocalDateTime.now())
-            .build();
-        
-        movie = movieRepository.save(movie);
-        log.info("Imported movie: {} (ID: {})", movie.getTitle(), movie.getId());
-        
-        return movie;
-    }
-
-    /**
-     * Sync/update an existing movie with TMDb data
-     */
-    @Transactional
-    @CacheEvict(value = "movies", allEntries = true)
-    public Movie syncWithTmdb(Long movieId) {
-        Movie movie = movieRepository.findById(movieId)
-            .orElseThrow(() -> new MovieNotFoundException(movieId));
-        
-        if (movie.getTmdbId() == null) {
-            throw new IllegalStateException("Movie has no TMDb ID to sync");
-        }
-        
-        MovieDb tmdbMovie = tmdbApi.getMovies().getMovie(movie.getTmdbId(), language);
-        
-        // Update fields
-        movie.setTitle(tmdbMovie.getTitle());
-        movie.setOverview(tmdbMovie.getOverview());
-        movie.setTagline(tmdbMovie.getTagline());
-        movie.setPosterPath(tmdbMovie.getPosterPath());
-        movie.setBackdropPath(tmdbMovie.getBackdropPath());
-        movie.setVoteAverage(tmdbMovie.getVoteAverage());
-        movie.setVoteCount(tmdbMovie.getVoteCount());
-        if (tmdbMovie.getRuntime() != null) {
-            movie.setDurationMinutes(tmdbMovie.getRuntime());
-        }
-        movie.setTmdbSyncedAt(LocalDateTime.now());
-        
-        return movieRepository.save(movie);
-    }
-
-    // Helper methods
-    
-    private TmdbMovieDto mapToTmdbDto(info.movito.themoviedbapi.model.core.Movie movie) {
-        return TmdbMovieDto.builder()
-            .tmdbId(movie.getId())
-            .title(movie.getTitle())
-            .overview(movie.getOverview())
-            .posterPath(movie.getPosterPath())
-            .backdropPath(movie.getBackdropPath())
-            .voteAverage(movie.getVoteAverage())
-            .voteCount(movie.getVoteCount())
-            .releaseDate(parseReleaseDate(movie.getReleaseDate()))
-            .originalLanguage(movie.getOriginalLanguage())
-            .build();
-    }
-
-    private TmdbMovieDto mapToDetailedTmdbDto(MovieDb movie) {
-        return TmdbMovieDto.builder()
-            .tmdbId(movie.getId())
-            .title(movie.getTitle())
-            .overview(movie.getOverview())
-            .tagline(movie.getTagline())
-            .runtime(movie.getRuntime())
-            .posterPath(movie.getPosterPath())
-            .backdropPath(movie.getBackdropPath())
-            .voteAverage(movie.getVoteAverage())
-            .voteCount(movie.getVoteCount())
-            .releaseDate(parseReleaseDate(movie.getReleaseDate()))
-            .originalLanguage(movie.getOriginalLanguage())
-            .genres(movie.getGenres().stream()
-                .map(g -> g.getName())
-                .toList())
-            .build();
-    }
-
-    private LocalDate parseReleaseDate(String dateStr) {
-        if (dateStr == null || dateStr.isEmpty()) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(dateStr);
-        } catch (Exception e) {
-            log.warn("Failed to parse release date: {}", dateStr);
-            return null;
-        }
-    }
-
-    private String extractGenres(MovieDb movie) {
-        if (movie.getGenres() == null || movie.getGenres().isEmpty()) {
-            return null;
-        }
-        return movie.getGenres().stream()
-            .map(g -> g.getName())
-            .collect(Collectors.joining(", "));
-    }
-
-    // Image URL builders
-    
-    public String getPosterUrl(String posterPath) {
-        return posterPath != null ? imageBaseUrl + posterSize + posterPath : null;
-    }
-
-    public String getBackdropUrl(String backdropPath) {
-        return backdropPath != null ? imageBaseUrl + backdropSize + backdropPath : null;
-    }
-}
-```
-
-### Step 7: Update Movie Repository
-
-Add to `MovieRepository.java`:
-
-```java
-@Repository
-public interface MovieRepository extends JpaRepository<Movie, Long> {
-    
-    Optional<Movie> findByTmdbId(Integer tmdbId);
-    
-    boolean existsByTmdbId(Integer tmdbId);
-    
-    List<Movie> findByTitleContainingIgnoreCase(String title);
-    
-    List<Movie> findByGenresContainingIgnoreCase(String genre);
-}
-```
-
-### Step 8: Admin Controller for TMDb
-
-Add to `AdminController.java`:
-
-```java
-@RestController
-@RequestMapping("/api/admin")
-@RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
-public class AdminController {
-
-    private final AdminService adminService;
-    private final TmdbService tmdbService;
-
-    // ... existing endpoints ...
-
-    // TMDb Integration Endpoints
-    
-    @GetMapping("/tmdb/search")
-    @Operation(summary = "Search movies on TMDb")
-    public ResponseEntity<List<TmdbMovieDto>> searchTmdb(
-            @RequestParam String query,
-            @RequestParam(defaultValue = "1") int page) {
-        return ResponseEntity.ok(tmdbService.searchMovies(query, page));
-    }
-
-    @GetMapping("/tmdb/popular")
-    @Operation(summary = "Get popular movies from TMDb")
-    public ResponseEntity<List<TmdbMovieDto>> getPopularTmdb(
-            @RequestParam(defaultValue = "1") int page) {
-        return ResponseEntity.ok(tmdbService.getPopularMovies(page));
-    }
-
-    @GetMapping("/tmdb/now-playing")
-    @Operation(summary = "Get now playing movies from TMDb")
-    public ResponseEntity<List<TmdbMovieDto>> getNowPlayingTmdb(
-            @RequestParam(defaultValue = "1") int page) {
-        return ResponseEntity.ok(tmdbService.getNowPlayingMovies(page));
-    }
-
-    @GetMapping("/tmdb/{tmdbId}")
-    @Operation(summary = "Get movie details from TMDb")
-    public ResponseEntity<TmdbMovieDto> getTmdbMovieDetails(@PathVariable int tmdbId) {
-        return ResponseEntity.ok(tmdbService.getMovieDetails(tmdbId));
-    }
-
-    @PostMapping("/tmdb/import/{tmdbId}")
-    @Operation(summary = "Import a movie from TMDb to local database")
-    public ResponseEntity<MovieResponse> importFromTmdb(@PathVariable int tmdbId) {
-        Movie movie = tmdbService.importFromTmdb(tmdbId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(mapToResponse(movie));
-    }
-
-    @PostMapping("/movies/{movieId}/sync-tmdb")
-    @Operation(summary = "Sync existing movie with TMDb data")
-    public ResponseEntity<MovieResponse> syncWithTmdb(@PathVariable Long movieId) {
-        Movie movie = tmdbService.syncWithTmdb(movieId);
-        return ResponseEntity.ok(mapToResponse(movie));
-    }
-    
-    private MovieResponse mapToResponse(Movie movie) {
-        return MovieResponse.builder()
-            .id(movie.getId())
-            .tmdbId(movie.getTmdbId())
-            .title(movie.getTitle())
-            .durationMinutes(movie.getDurationMinutes())
-            .overview(movie.getOverview())
-            .tagline(movie.getTagline())
-            .posterUrl(tmdbService.getPosterUrl(movie.getPosterPath()))
-            .backdropUrl(tmdbService.getBackdropUrl(movie.getBackdropPath()))
-            .voteAverage(movie.getVoteAverage())
-            .voteCount(movie.getVoteCount())
-            .releaseDate(movie.getReleaseDate())
-            .originalLanguage(movie.getOriginalLanguage())
-            .genres(movie.getGenres() != null 
-                ? Arrays.asList(movie.getGenres().split(", ")) 
-                : null)
-            .build();
-    }
-}
-```
-
-### Step 9: Update MovieService
-
-Update `MovieService.java` to return rich movie data:
-
-```java
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)
-public class MovieService {
-
-    private final MovieRepository movieRepository;
-    private final TmdbService tmdbService;
-
-    @Cacheable(CacheConfig.MOVIES_CACHE)
-    public List<MovieResponse> getAllMovies() {
-        return movieRepository.findAll().stream()
-            .map(this::mapToResponse)
-            .toList();
-    }
-
-    public MovieResponse getMovieById(Long id) {
-        return movieRepository.findById(id)
-            .map(this::mapToResponse)
-            .orElseThrow(() -> new MovieNotFoundException(id));
-    }
-
-    private MovieResponse mapToResponse(Movie movie) {
-        return MovieResponse.builder()
-            .id(movie.getId())
-            .tmdbId(movie.getTmdbId())
-            .title(movie.getTitle())
-            .durationMinutes(movie.getDurationMinutes())
-            .overview(movie.getOverview())
-            .tagline(movie.getTagline())
-            .posterUrl(tmdbService.getPosterUrl(movie.getPosterPath()))
-            .backdropUrl(tmdbService.getBackdropUrl(movie.getBackdropPath()))
-            .voteAverage(movie.getVoteAverage())
-            .voteCount(movie.getVoteCount())
-            .releaseDate(movie.getReleaseDate())
-            .originalLanguage(movie.getOriginalLanguage())
-            .genres(movie.getGenres() != null 
-                ? Arrays.asList(movie.getGenres().split(", ")) 
-                : null)
-            .build();
-    }
-}
-```
-
-## Testing
-
-### TMDb Service Test
-
-```java
-@ExtendWith(MockitoExtension.class)
-class TmdbServiceTest {
-
-    @Mock
-    private TmdbApi tmdbApi;
-    
-    @Mock
-    private MovieRepository movieRepository;
-    
-    @InjectMocks
-    private TmdbService tmdbService;
-
-    @Test
-    void importFromTmdb_NewMovie_Success() {
-        // Test implementation
-    }
-
-    @Test
-    void importFromTmdb_AlreadyExists_ReturnsExisting() {
-        // Test implementation
-    }
-}
-```
-
-## Environment Variables
-
-Add to `.env.example`:
+**Option A: Environment Variable (Recommended for Production)**
 ```bash
-# TMDb API Configuration
-TMDB_API_KEY=your-tmdb-api-key-here
+export TMDB_API_KEY=your_api_key_here
+export TMDB_API_ENABLED=true
 ```
 
-## Usage Examples
+**Option B: Application Properties (Development)**
+```properties
+# src/main/resources/application.properties
+tmdb.api.key=your_api_key_here
+tmdb.api.enabled=true
+```
 
-### Admin Workflow
+**Option C: Command Line**
+```bash
+./mvnw spring-boot:run -Dtmdb.api.key=your_api_key_here -Dtmdb.api.enabled=true
+```
 
-1. **Search for a movie:**
-   ```bash
-   GET /api/admin/tmdb/search?query=Inception
-   ```
+### 3. Verify Configuration
 
-2. **View details:**
-   ```bash
-   GET /api/admin/tmdb/27205
-   ```
+Check the startup logs for:
+```
+TMDb client initialized successfully. Base URL: https://api.themoviedb.org/3
+TMDb Client initialized and ready for use
+TMDb MovieDataSource initialized with custom client
+```
 
-3. **Import to local database:**
-   ```bash
-   POST /api/admin/tmdb/import/27205
-   ```
+## 🔌 API Endpoints
 
-4. **Create show with imported movie:**
-   ```bash
-   POST /api/admin/shows
-   {
-     "movieId": 1,
-     "hallId": 1,
-     "startTime": "2025-12-05T19:00:00",
-     "endTime": "2025-12-05T21:30:00"
-   }
-   ```
+### Base URL
+```
+http://localhost:8080/api/admin/movies
+```
 
-## Benefits
+### Authentication
+All endpoints require:
+- ✅ Valid JWT token in Authorization header
+- ✅ ROLE_ADMIN role
 
-1. **Rich Movie Data:** Posters, descriptions, ratings
-2. **Professional Look:** Real movie images
-3. **Up-to-date Info:** Sync with TMDb anytime
-4. **Searchable Catalog:** Easy to find and add movies
-5. **Admin Control:** Import only what you need
+### Endpoints
 
+#### 1. 🔍 Search Movies
+**Endpoint:** `GET /api/admin/movies/search`
+
+**Parameters:**
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| query | string | Yes | Search query (title, actor, keyword) | "Inception" |
+| page | integer | No | Page number (default: 1) | 1 |
+
+**Response:** Array of `ExternalMovieSearchResponse`
+```json
+[
+  {
+    "externalId": "27205",
+    "title": "Inception",
+    "overview": "A thief who steals corporate secrets...",
+    "releaseDate": "2010-07-16",
+    "runtime": 148,
+    "genres": ["Action", "Science Fiction", "Thriller"],
+    "posterPath": "/qmDpIHrmpJINaRKAfWQfftjCdyi.jpg",
+    "voteAverage": 8.3,
+    "source": "TMDb"
+  }
+]
+```
+
+**HTTP Status Codes:**
+- `200 OK` - Search successful (may return empty array)
+- `400 Bad Request` - Invalid parameters
+- `401 Unauthorized` - Missing or invalid JWT token
+- `403 Forbidden` - Not an admin user
+- `502 Bad Gateway` - TMDb API unavailable or invalid API key
+
+---
+
+#### 2. 📥 Import Movie
+**Endpoint:** `POST /api/admin/movies/import`
+
+**Request Body:** `ImportMovieRequest`
+```json
+{
+  "externalId": "27205",
+  "genre": "Action"
+}
+```
+
+**Fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| externalId | string | Yes | TMDb movie ID from search results |
+| genre | string | No | Override genre (uses TMDb's first genre if omitted) |
+
+**Response:** `MovieResponse`
+```json
+{
+  "id": 1,
+  "title": "Inception",
+  "durationMinutes": 148,
+  "genre": "Action"
+}
+```
+
+**HTTP Status Codes:**
+- `201 Created` - Movie imported successfully
+- `400 Bad Request` - Invalid request body
+- `401 Unauthorized` - Missing or invalid JWT token
+- `403 Forbidden` - Not an admin user
+- `404 Not Found` - Movie not found in TMDb with provided ID
+- `502 Bad Gateway` - TMDb API unavailable
+
+## 📖 Usage Workflow
+
+### Step-by-Step Guide
+
+#### 1. **Login as Admin**
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@cinema.com",
+    "password": "Admin123!"
+  }'
+```
+
+**Response:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "type": "Bearer",
+  "id": 1,
+  "email": "admin@cinema.com",
+  "roles": "ROLE_ADMIN"
+}
+```
+
+**Save the token** for subsequent requests.
+
+---
+
+#### 2. **Search for Movies**
+```bash
+curl -X GET "http://localhost:8080/api/admin/movies/search?query=Inception&page=1" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+```json
+[
+  {
+    "externalId": "27205",
+    "title": "Inception",
+    "overview": "Cobb, a skilled thief...",
+    "releaseDate": "2010-07-16",
+    "runtime": 148,
+    "genres": ["Action", "Science Fiction", "Thriller"],
+    "posterPath": "/qmDpIHrmpJINaRKAfWQfftjCdyi.jpg",
+    "voteAverage": 8.3,
+    "source": "TMDb"
+  }
+]
+```
+
+---
+
+#### 3. **Import Selected Movie**
+```bash
+curl -X POST http://localhost:8080/api/admin/movies/import \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalId": "27205",
+    "genre": "Science Fiction"
+  }'
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "title": "Inception",
+  "durationMinutes": 148,
+  "genre": "Science Fiction"
+}
+```
+
+---
+
+#### 4. **Create a Show**
+Now that the movie is in your system, create a show:
+
+```bash
+curl -X POST http://localhost:8080/api/admin/shows \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "movieId": 1,
+    "hallId": 1,
+    "startTime": "2025-12-15T19:00:00",
+    "ticketPrice": 15.00
+  }'
+```
+
+---
+
+#### 5. **Verify in Public API**
+The movie is now available to users:
+
+```bash
+curl -X GET http://localhost:8080/api/movies
+```
+
+## 🎨 Swagger UI Guide
+
+### Accessing Swagger UI
+
+1. Open your browser to: **http://localhost:8080/swagger-ui.html**
+2. You'll see all API endpoints organized by tags
+
+### Using TMDb Endpoints in Swagger
+
+#### 1. **Authorize**
+- Click the **"Authorize" button** (🔒 icon) at the top right
+- Enter: `Bearer YOUR_JWT_TOKEN` (include the word "Bearer" and a space)
+- Click "Authorize" then "Close"
+
+#### 2. **Search Movies**
+- Expand **"🎥 Admin - TMDb Movie Import"** section
+- Click **"GET /api/admin/movies/search"**
+- Click **"Try it out"**
+- Enter search query (e.g., "Inception")
+- Click **"Execute"**
+- View response below
+
+#### 3. **Import Movie**
+- Still in **"🎥 Admin - TMDb Movie Import"** section
+- Click **"POST /api/admin/movies/import"**
+- Click **"Try it out"**
+- Copy an `externalId` from search results
+- Paste into the request body:
+  ```json
+  {
+    "externalId": "27205",
+    "genre": "Action"
+  }
+  ```
+- Click **"Execute"**
+- Movie is now imported!
+
+### Swagger Features
+
+✨ **Auto-completion**: Swagger provides examples and schema validation
+
+✨ **Response Samples**: See expected responses for each status code
+
+✨ **Request Examples**: Copy-paste ready JSON examples
+
+✨ **Error Documentation**: All possible error codes documented
+
+✨ **Try It Out**: Test APIs directly from the browser
+
+## 🚨 Troubleshooting
+
+### Issue: Endpoints Not Showing in Swagger
+
+**Solution:**
+- Verify TMDb is enabled: `tmdb.api.enabled=true`
+- Check logs for "TMDb client initialized"
+- Restart application after configuration changes
+
+### Issue: 401 Unauthorized
+
+**Solution:**
+- Ensure you're logged in as admin
+- Check JWT token is valid and not expired
+- Format: `Bearer <token>` (note the space)
+- Admin account: `admin@cinema.com` / `Admin123!`
+
+### Issue: 403 Forbidden
+
+**Solution:**
+- Verify user has ROLE_ADMIN role
+- Check: `GET /api/auth/me` with your token
+- Default admin account has ROLE_ADMIN
+
+### Issue: 502 Bad Gateway (TMDb API Error)
+
+**Possible Causes:**
+1. **Invalid API Key**
+   - Verify key is correct
+   - Check for extra spaces or quotes
+   - Get new key from TMDb if needed
+
+2. **Rate Limiting**
+   - TMDb free tier: 40 requests / 10 seconds
+   - Wait a moment and try again
+   - Consider caching responses
+
+3. **TMDb Service Down**
+   - Check [TMDb Status](https://status.themoviedb.org/)
+   - Try again later
+
+### Issue: 404 Movie Not Found
+
+**Solution:**
+- Verify the externalId is correct
+- TMDb IDs are numeric strings (e.g., "27205")
+- Movie might have been removed from TMDb
+- Try searching again to get current ID
+
+### Issue: Empty Search Results
+
+**Possible Causes:**
+- Search query too specific
+- Try broader terms (e.g., "Inception" instead of "Inception 2010 DiCaprio")
+- Check spelling
+- Try searching by actor name
+
+### Checking Logs
+
+View detailed logs:
+```bash
+tail -f logs/application.log | grep TMDb
+```
+
+Common log patterns:
+- `TMDb client initialized` - Configuration successful
+- `TMDb search successful` - Search completed
+- `Movie imported successfully` - Import completed
+- `TMDb API error` - API communication issue
+
+## 📚 Additional Resources
+
+- [TMDb API Documentation](https://developers.themoviedb.org/3)
+- [Project README](./README.md)
+- [API Documentation](./API_DOCUMENTATION.md)
+- [Deployment Guide](./DEPLOYMENT.md)
+
+## 🎯 Best Practices
+
+1. **API Key Security**
+   - Never commit API keys to version control
+   - Use environment variables in production
+   - Rotate keys periodically
+
+2. **Rate Limiting**
+   - Cache frequently accessed movies
+   - Implement request throttling
+   - Monitor API usage
+
+3. **Error Handling**
+   - Always check response status codes
+   - Implement retry logic for transient failures
+   - Log errors for debugging
+
+4. **Data Management**
+   - Don't import duplicate movies
+   - Verify movie data before creating shows
+   - Keep movie information up to date
+
+## 🤝 Support
+
+If you encounter issues:
+1. Check this guide's troubleshooting section
+2. Review application logs
+3. Verify TMDb API status
+4. Check your JWT token and admin role
+
+---
+
+**Happy Movie Importing! 🎬🍿**

@@ -628,11 +628,25 @@ public class BookingService {
             throw new InvalidBookingException("Cancellation must be made at least 24 hours before show time");
         }
 
-        // 6. Release seats back to AVAILABLE
+        // 6. Process Refund (New Step)
+        if (booking.getTransactionId() != null) {
+            try {
+                paymentService.processRefund(booking.getTransactionId(), booking.getTotalAmount());
+            } catch (PaymentFailedException e) {
+                log.error("Refund failed for booking {}: {}", bookingId, e.getMessage());
+                throw new InvalidBookingException(
+                        "Cancellation failed: Refund processing failed. Please contact support.");
+            }
+        }
+
+        // 7. Release seats back to AVAILABLE
         var bookingSeats = booking.getBookingSeats();
         for (var bookingSeat : bookingSeats) {
             var showSeat = bookingSeat.getShowSeat();
             showSeat.setStatus(ShowSeat.SeatStatus.AVAILABLE);
+            // Ensure locks are cleared if any
+            showSeat.setLockedUntil(null);
+            showSeat.setLockedByUserId(null);
         }
         // Bulk save
         var showSeatsToRelease = bookingSeats.stream()
@@ -640,11 +654,14 @@ public class BookingService {
                 .toList();
         showSeatRepository.saveAll(showSeatsToRelease);
 
-        // 7. Update booking status
+        // 8. Update booking status
         booking.setStatus(Booking.BookingStatus.CANCELLED);
         bookingRepository.save(booking);
 
-        log.info("Booking cancelled successfully. Booking ID: {}", bookingId);
+        // 9. Send Notification (New Step)
+        notificationManager.sendBookingCancellation(booking);
+
+        log.info("Booking cancelled and refunded successfully. Booking ID: {}", bookingId);
 
         return CancellationResponse.builder()
                 .bookingId(bookingId)

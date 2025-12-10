@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Entity to track seat holds during checkout process.
@@ -48,6 +46,7 @@ public class SeatHold {
     private LocalDateTime expiresAt;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(nullable = false, length = 20)
     private HoldStatus status = HoldStatus.ACTIVE;
 
@@ -72,6 +71,7 @@ public class SeatHold {
 
     @Version
     @Column(nullable = false)
+    @Builder.Default
     private Long version = 0L;
 
     public enum HoldStatus {

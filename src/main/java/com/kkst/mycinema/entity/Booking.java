@@ -32,10 +32,12 @@ public class Booking {
     private Show show;
 
     @Column(name = "booking_time", nullable = false)
+    @Builder.Default
     private LocalDateTime bookingTime = LocalDateTime.now();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Builder.Default
     private BookingStatus status = BookingStatus.CONFIRMED;
 
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)

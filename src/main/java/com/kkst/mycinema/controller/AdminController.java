@@ -102,6 +102,21 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Show deleted successfully"));
     }
 
+    @PutMapping("/shows/{id}")
+    @Operation(summary = "Update a show", description = "Updates a show if it has no confirmed bookings")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Show updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Show not found"),
+            @ApiResponse(responseCode = "409", description = "Cannot update - show has confirmed bookings"),
+            @ApiResponse(responseCode = "403", description = "Access denied - ADMIN role required")
+    })
+    public ResponseEntity<ShowResponse> updateShow(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateShowRequest request) {
+        var response = adminService.updateShow(id, request);
+        return ResponseEntity.ok(response);
+    }
+
     // =====================================================
     // Analytics
     // =====================================================
@@ -133,4 +148,3 @@ public class AdminController {
         return ResponseEntity.ok(report);
     }
 }
-

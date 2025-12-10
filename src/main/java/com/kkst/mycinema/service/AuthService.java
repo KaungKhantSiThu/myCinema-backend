@@ -37,12 +37,26 @@ public class AuthService {
             throw new EmailAlreadyExistsException("Email already registered");
         }
 
+        // Determine role - default to ROLE_USER if not specified
+        String userRole = "ROLE_USER";
+        if (request.role() != null && !request.role().isBlank()) {
+            // Normalize role (add ROLE_ prefix if not present, convert to uppercase)
+            String normalizedRole = request.role().toUpperCase().trim();
+            if (!normalizedRole.startsWith("ROLE_")) {
+                normalizedRole = "ROLE_" + normalizedRole;
+            }
+            // Only allow USER and ADMIN roles
+            if (normalizedRole.equals("ROLE_ADMIN") || normalizedRole.equals("ROLE_USER")) {
+                userRole = normalizedRole;
+            }
+        }
+
         // Create new user
         var user = User.builder()
                 .name(request.name())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
-                .roles("ROLE_USER")
+                .roles(userRole)
                 .createdAt(LocalDateTime.now())
                 .build();
 

@@ -347,6 +347,41 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
     }
 
+    // =====================================================
+    // External API Exception Handlers - BAD_GATEWAY (502)
+    // =====================================================
+
+    /**
+     * Handle external API failures (e.g., TMDb, OMDB).
+     * Returns 502 BAD_GATEWAY to indicate the issue is with an external service.
+     */
+    @ExceptionHandler(ExternalApiException.class)
+    public ResponseEntity<ErrorResponse> handleExternalApiException(
+            ExternalApiException ex,
+            HttpServletRequest request) {
+
+        log.error("External API error from {}: {} - {}", ex.getApiName(), ex.getErrorCode(), ex.getMessage(), ex);
+
+        Map<String, String> errorDetails = new HashMap<>();
+        errorDetails.put("apiName", ex.getApiName());
+        errorDetails.put("errorCode", ex.getErrorCode());
+        errorDetails.put("troubleshooting", "Check external API status and credentials");
+
+        var errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_GATEWAY.value())
+                .message(String.format("External API (%s) error: %s", ex.getApiName(), ex.getMessage()))
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .errors(errorDetails)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorResponse);
+    }
+
+    // =====================================================
+    // Authentication Exception Handlers
+    // =====================================================
+
     /**
      * Handle authentication errors
      */

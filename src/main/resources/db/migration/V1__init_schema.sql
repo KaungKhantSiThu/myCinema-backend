@@ -1,5 +1,6 @@
--- V1: Initialize Cinema Booking Schema
+-- V1: Initialize Cinema Booking Schema (Consolidated)
 -- This migration creates all tables required for the cinema booking system
+-- Includes all features: seat holds, transaction tracking, and seat maintenance
 
 -- A. Static Data (The Cinema)
 
@@ -19,9 +20,11 @@ CREATE TABLE seats (
     hall_id BIGINT NOT NULL,
     row_number INT NOT NULL,
     seat_number INT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     CONSTRAINT fk_seats_hall FOREIGN KEY (hall_id) REFERENCES halls(id) ON DELETE CASCADE,
     CONSTRAINT chk_row_positive CHECK (row_number > 0),
     CONSTRAINT chk_seat_positive CHECK (seat_number > 0),
+    CONSTRAINT chk_seat_status_valid CHECK (status IN ('ACTIVE', 'MAINTENANCE')),
     UNIQUE (hall_id, row_number, seat_number)
 );
 
@@ -55,7 +58,9 @@ CREATE TABLE show_seats (
     seat_id BIGINT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
     price DECIMAL(10, 2) NOT NULL,
-    version BIGINT NOT NULL DEFAULT 0, -- CRITICAL: Optimistic Locking
+    version BIGINT NOT NULL DEFAULT 0,
+    locked_until TIMESTAMP,
+    locked_by_user_id BIGINT,
     CONSTRAINT fk_show_seats_show FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE CASCADE,
     CONSTRAINT fk_show_seats_seat FOREIGN KEY (seat_id) REFERENCES seats(id) ON DELETE CASCADE,
     CONSTRAINT chk_status_valid CHECK (status IN ('AVAILABLE', 'BOOKED', 'LOCKED')),
@@ -68,8 +73,9 @@ CREATE TABLE show_seats (
 -- users: Represents registered users
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100),
     email VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL, -- BCrypt hash
+    password VARCHAR(255) NOT NULL,
     roles VARCHAR(50) NOT NULL DEFAULT 'ROLE_USER',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -82,6 +88,7 @@ CREATE TABLE bookings (
     booking_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) NOT NULL DEFAULT 'CONFIRMED',
     total_amount DECIMAL(10, 2) NOT NULL,
+    transaction_id VARCHAR(255),
     CONSTRAINT fk_bookings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_bookings_show FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE CASCADE,
     CONSTRAINT chk_booking_status_valid CHECK (status IN ('CONFIRMED', 'CANCELLED')),
@@ -98,13 +105,54 @@ CREATE TABLE booking_seats (
     UNIQUE (booking_id, show_seat_id)
 );
 
--- Indexes for performance
+-- seat_holds: Temporary seat reservations during checkout
+CREATE TABLE seat_holds (
+    id BIGSERIAL PRIMARY KEY,
+    hold_token VARCHAR(64) NOT NULL UNIQUE,
+    user_id BIGINT NOT NULL,
+    show_id BIGINT NOT NULL,
+    seat_ids VARCHAR(1000) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT fk_seat_holds_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_seat_holds_show FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE CASCADE,
+    CONSTRAINT chk_hold_status_valid CHECK (status IN ('ACTIVE', 'CONFIRMED', 'RELEASED', 'EXPIRED'))
+);
+
+-- D. Performance Indexes
+
+-- shows indexes
 CREATE INDEX idx_shows_movie_id ON shows(movie_id);
 CREATE INDEX idx_shows_hall_id ON shows(hall_id);
 CREATE INDEX idx_shows_start_time ON shows(start_time);
+CREATE INDEX idx_shows_movie_date ON shows(movie_id, start_time);
+
+-- show_seats indexes
 CREATE INDEX idx_show_seats_show_id ON show_seats(show_id);
 CREATE INDEX idx_show_seats_status ON show_seats(status);
+CREATE INDEX idx_show_seat_status ON show_seats(show_id, status);
+CREATE INDEX idx_show_seats_locked_until ON show_seats(locked_until);
+
+-- bookings indexes
 CREATE INDEX idx_bookings_user_id ON bookings(user_id);
 CREATE INDEX idx_bookings_show_id ON bookings(show_id);
+CREATE INDEX idx_bookings_user_time ON bookings(user_id, booking_time DESC);
+CREATE INDEX idx_bookings_transaction_id ON bookings(transaction_id);
+
+-- booking_seats indexes
+CREATE INDEX idx_booking_seats_booking_id ON booking_seats(booking_id);
+
+-- users indexes
 CREATE INDEX idx_users_email ON users(email);
+
+-- seat_holds indexes
+CREATE INDEX idx_seat_holds_token ON seat_holds(hold_token);
+CREATE INDEX idx_seat_holds_status_expires ON seat_holds(status, expires_at);
+CREATE INDEX idx_seat_holds_user ON seat_holds(user_id);
+CREATE INDEX idx_seat_holds_show ON seat_holds(show_id);
+
+-- seats indexes
+CREATE INDEX idx_seats_status ON seats(status);
 

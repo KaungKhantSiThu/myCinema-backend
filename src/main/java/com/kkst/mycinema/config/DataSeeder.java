@@ -5,6 +5,7 @@ import com.kkst.mycinema.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -22,6 +23,8 @@ public class DataSeeder implements CommandLineRunner {
     private final MovieRepository movieRepository;
     private final ShowRepository showRepository;
     private final ShowSeatRepository showSeatRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
@@ -32,6 +35,19 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         log.info("Starting data seeding...");
+
+        // 0. Create default admin user for testing
+        if (!userRepository.existsByEmail("admin@cinema.com")) {
+            var admin = User.builder()
+                    .name("Admin User")
+                    .email("admin@cinema.com")
+                    .password(passwordEncoder.encode("Admin123!"))
+                    .roles("ROLE_ADMIN")
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            userRepository.save(admin);
+            log.info("Created default admin user: admin@cinema.com (password: Admin123!)");
+        }
 
         // 1. Create Cinema Hall
         var hall = Hall.builder()

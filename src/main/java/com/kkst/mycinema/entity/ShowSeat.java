@@ -32,6 +32,7 @@ public class ShowSeat {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Builder.Default
     private SeatStatus status = SeatStatus.AVAILABLE;
 
     @Column(nullable = false, precision = 10, scale = 2)
@@ -40,6 +41,7 @@ public class ShowSeat {
     // CRITICAL: Optimistic Locking for concurrency control
     @Version
     @Column(nullable = false)
+    @Builder.Default
     private Long version = 0L;
 
     // Seat hold/lock fields

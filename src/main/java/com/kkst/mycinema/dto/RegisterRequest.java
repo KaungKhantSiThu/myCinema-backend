@@ -22,6 +22,10 @@ public record RegisterRequest(
                 regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
                 message = "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character (@$!%*?&)"
         )
-        String password
+        String password,
+
+        // Optional role field - defaults to USER if not provided
+        // Valid values: "USER", "ADMIN"
+        String role
 ) {}
 
