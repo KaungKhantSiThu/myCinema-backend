@@ -1,4 +1,4 @@
-# 🚀 Cinema Booking Service - Deployment Guide
+# Cinema Booking Service - Deployment Guide
 
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
@@ -447,17 +447,4 @@ java -jar \
   myCinema.jar
 ```
 
----
-
-## Support
-
-For issues and questions:
-- Check logs first
-- Review [RECOMMENDATIONS.md](RECOMMENDATIONS.md)
-- Open an issue on GitHub
-- Contact: your-email@example.com
-
----
-
-**Last Updated:** November 30, 2025
 

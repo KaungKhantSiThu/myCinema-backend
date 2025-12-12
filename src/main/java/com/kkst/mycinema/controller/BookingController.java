@@ -77,22 +77,6 @@ public class BookingController {
                 return ResponseEntity.status(HttpStatus.CREATED).body(response);
         }
 
-        @PostMapping("/confirm/{holdToken}")
-        @RateLimiter(name = "booking")
-        @Operation(summary = "Confirm held seats (Legacy/Testing)", description = "Confirms a seat hold without payment processing. Use /confirm-with-payment for production.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "201", description = "Booking confirmed successfully"),
-                        @ApiResponse(responseCode = "400", description = "Hold expired or invalid"),
-                        @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
-        })
-        @Deprecated
-        public ResponseEntity<BookingResponse> confirmBooking(
-                        @PathVariable String holdToken,
-                        Authentication authentication) {
-                var userEmail = authentication.getName();
-                var response = bookingService.confirmHold(holdToken, userEmail);
-                return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        }
 
         @DeleteMapping("/hold/{holdToken}")
         @Operation(summary = "Release held seats", description = "Releases seats that were previously held, making them available again.")

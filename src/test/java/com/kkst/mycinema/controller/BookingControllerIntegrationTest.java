@@ -3,6 +3,7 @@ package com.kkst.mycinema.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kkst.mycinema.dto.BookingRequest;
 import com.kkst.mycinema.dto.BookingResponse;
+import com.kkst.mycinema.security.CustomUserDetailsService;
 import com.kkst.mycinema.security.JwtAuthenticationFilter;
 import com.kkst.mycinema.security.JwtUtil;
 import com.kkst.mycinema.service.BookingService;
@@ -11,7 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,7 +23,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -29,118 +31,145 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(BookingController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc // removed addFilters=false to enable security
 class BookingControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+        @Autowired
+        private ObjectMapper objectMapper;
 
-    @MockBean
-    private BookingService bookingService;
+        @MockBean
+        private BookingService bookingService;
 
-    @MockBean
-    private JwtUtil jwtUtil;
+        // Required for SecurityConfig
+        @MockBean
+        private JwtUtil jwtUtil;
 
-    @MockBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+        @MockBean
+        private CustomUserDetailsService customUserDetailsService;
 
-    private BookingRequest bookingRequest;
-    private BookingResponse bookingResponse;
+        @TestConfiguration
+        static class TestConfig {
+                @Bean
+                public JwtAuthenticationFilter jwtAuthenticationFilter() {
+                        return new JwtAuthenticationFilter(null, null) {
+                                @Override
+                                protected void doFilterInternal(jakarta.servlet.http.HttpServletRequest request,
+                                                jakarta.servlet.http.HttpServletResponse response,
+                                                jakarta.servlet.FilterChain filterChain)
+                                                throws jakarta.servlet.ServletException, java.io.IOException {
+                                        filterChain.doFilter(request, response);
+                                }
+                        };
+                }
+        }
 
-    @BeforeEach
-    void setUp() {
-        bookingRequest = BookingRequest.builder()
-                .showId(1L)
-                .seatIds(Arrays.asList(1L, 2L, 3L))
-                .build();
+        private BookingRequest bookingRequest;
+        private BookingResponse bookingResponse;
 
-        bookingResponse = BookingResponse.builder()
-                .bookingId(1L)
-                .showId(1L)
-                .movieTitle("Inception")
-                .showTime(LocalDateTime.now().plusHours(2))
-                .seats(Collections.emptyList())
-                .totalAmount(new BigDecimal("45.00"))
-                .bookingTime(LocalDateTime.now())
-                .status("CONFIRMED")
-                .build();
-    }
+        @BeforeEach
+        void setUp() {
+                bookingRequest = BookingRequest.builder()
+                                .showId(1L)
+                                .seatIds(Arrays.asList(1L, 2L, 3L))
+                                .build();
 
-    @Test
-    @WithMockUser(username = "user@example.com")
-    void createBooking_ValidRequest_ReturnsCreated() throws Exception {
-        // Arrange
-        when(bookingService.bookSeats(any(BookingRequest.class), anyString()))
-                .thenReturn(bookingResponse);
+                bookingResponse = BookingResponse.builder()
+                                .bookingId(1L)
+                                .showId(1L)
+                                .movieTitle("Inception")
+                                .showTime(LocalDateTime.now().plusHours(2))
+                                .seats(Collections.emptyList())
+                                .totalAmount(new BigDecimal("45.00"))
+                                .bookingTime(LocalDateTime.now())
+                                .status("CONFIRMED")
+                                .build();
+        }
 
-        // Act & Assert - With filters disabled, authentication might not work properly
-        mockMvc.perform(post("/api/bookings")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(bookingRequest)))
-                .andExpect(status().isBadRequest()); // Expect 400 since authentication is null with filters disabled
+        @Test
+        @WithMockUser(username = "user@example.com")
+        void createBooking_ValidRequest_ReturnsCreated() throws Exception {
+                // Arrange
+                when(bookingService.bookSeats(any(BookingRequest.class), eq("user@example.com")))
+                                .thenReturn(bookingResponse);
 
-        // Verify service was never called due to authentication issue
-        verify(bookingService, never()).bookSeats(any(BookingRequest.class), anyString());
-    }
+                // Act & Assert
+                mockMvc.perform(post("/api/bookings")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(bookingRequest)))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.bookingId").value(1))
+                                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                                .andExpect(jsonPath("$.totalAmount").value(45.00));
 
-    @Test
-    @WithMockUser
-    void createBooking_EmptySeatList_ReturnsBadRequest() throws Exception {
-        // Arrange
-        var invalidRequest = BookingRequest.builder()
-                .showId(1L)
-                .seatIds(Collections.emptyList())
-                .build();
+                // Verify service was called with correct user email from security context
+                verify(bookingService).bookSeats(any(BookingRequest.class), eq("user@example.com"));
+        }
 
-        // Act & Assert
-        mockMvc.perform(post("/api/bookings")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().isBadRequest());
-    }
+        @Test
+        @WithMockUser
+        void createBooking_EmptySeatList_ReturnsBadRequest() throws Exception {
+                // Arrange
+                var invalidRequest = BookingRequest.builder()
+                                .showId(1L)
+                                .seatIds(Collections.emptyList())
+                                .build();
 
-    @Test
-    @WithMockUser(username = "user@example.com")
-    void getMyBookings_ReturnsBookingsList() throws Exception {
-        // Arrange
-        when(bookingService.getUserBookings(anyString()))
-                .thenReturn(Collections.singletonList(bookingResponse));
+                // Act & Assert
+                mockMvc.perform(post("/api/bookings")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(invalidRequest)))
+                                .andExpect(status().isBadRequest());
+        }
 
-        // Act & Assert - With filters disabled, authentication might not work properly
-        mockMvc.perform(get("/api/bookings/my-bookings"))
-                .andExpect(status().isBadRequest()); // Expect 400 since authentication is null with filters disabled
+        @Test
+        @WithMockUser(username = "user@example.com")
+        void getMyBookings_ReturnsBookingsList() throws Exception {
+                // Arrange
+                when(bookingService.getUserBookings(eq("user@example.com")))
+                                .thenReturn(Collections.singletonList(bookingResponse));
 
-        // Verify service was never called due to authentication issue
-        verify(bookingService, never()).getUserBookings(anyString());
-    }
+                // Act & Assert
+                mockMvc.perform(get("/api/bookings/my-bookings"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].bookingId").value(1));
 
-    @Test
-    void createBooking_Unauthenticated_ReturnsUnauthorized() throws Exception {
-        // Act & Assert - With filters disabled, this will fail validation not authentication
-        mockMvc.perform(post("/api/bookings")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(bookingRequest)))
-                .andExpect(status().isBadRequest());
-    }
+                verify(bookingService).getUserBookings(eq("user@example.com"));
+        }
 
-    @Test
-    @WithMockUser
-    void createBooking_ServiceThrowsException_ReturnsConflict() throws Exception {
-        // Arrange
-        when(bookingService.bookSeats(any(BookingRequest.class), anyString()))
-                .thenThrow(new RuntimeException("Seats already booked"));
+        @Test
+        // No @WithMockUser implies unauthenticated
+        void createBooking_Unauthenticated_ReturnsUnauthorized() throws Exception {
+                // Act & Assert
+                mockMvc.perform(post("/api/bookings")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(bookingRequest)))
+                                .andExpect(status().isUnauthorized());
+        }
 
-        // Act & Assert
-        mockMvc.perform(post("/api/bookings")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(bookingRequest)))
-                .andExpect(status().isBadRequest());
-    }
+        @Test
+        @WithMockUser
+        void createBooking_ServiceThrowsException_ReturnsConflict() throws Exception {
+                // Arrange
+                // Note: GlobalExceptionHandler maps RuntimeException to 400 Bad Request
+                // usually,
+                // but if it's a specific exception like SeatUnavailableException it might be
+                // 409.
+                // Let's use RuntimeException as in the original test which maps to 400 in
+                // current handler.
+                when(bookingService.bookSeats(any(BookingRequest.class), anyString()))
+                                .thenThrow(new RuntimeException("Seats already booked"));
+
+                // Act & Assert
+                mockMvc.perform(post("/api/bookings")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(bookingRequest)))
+                                .andExpect(status().isBadRequest());
+        }
 }
-

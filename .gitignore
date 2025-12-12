@@ -1,27 +1,35 @@
 # Compiled class files
-application-local.properties
-# Application specific
+*.class
 
-mvnw.cmd
-mvnw
-.mvn/
-# Maven specific
+# Log files
+*.log
+logs/
 
-Thumbs.db
-.DS_Store
-# OS specific files
+# Package Files
+target/
+*.jar
+*.war
+*.ear
 
-.project
-.classpath
-.settings/
+# IDE specific files
+.idea/
 .vscode/
 *.iws
 *.iml
-.idea/
-# IDE specific files
+.classpath
+.project
+.settings/
 
-*.log
-# Log files
+# OS specific files
+.DS_Store
+Thumbs.db
+.env
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
 
 target/
 *.class
