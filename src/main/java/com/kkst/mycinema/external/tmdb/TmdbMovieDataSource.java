@@ -38,28 +38,50 @@ public class TmdbMovieDataSource implements MovieDataSource {
         try {
             log.info("Searching TMDb for: '{}', page: {}", query, page);
             TmdbPagedResponse<TmdbMovie> response = tmdbClient.searchMovies(query, page);
-
-            if (response == null || response.getResults() == null) {
-                log.warn("TMDb search returned null results for query: '{}', page: {}", query, page);
-                return Collections.emptyList();
-            }
-
-            int resultCount = response.getResults().size();
-            log.info("TMDb search successful: query='{}', page={}, results={}, totalResults={}, totalPages={}",
-                    query, page, resultCount, response.getTotalResults(), response.getTotalPages());
-
-            List<ExternalMovieData> movies = mapper.toExternalMovieDataList(response.getResults());
-
-            if (movies.isEmpty()) {
-                log.info("No movies found in TMDb for query: '{}'", query);
-            }
-
-            return movies;
+            return processResponse(response, "search", query, page);
         } catch (Exception e) {
             log.error("Error searching TMDb for query: '{}', page: {}. Error: {}",
                     query, page, e.getMessage(), e);
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public List<ExternalMovieData> getNowPlaying(int page) {
+        try {
+            log.info("Fetching Now Playing from TMDb, page: {}", page);
+            TmdbPagedResponse<TmdbMovie> response = tmdbClient.getNowPlayingMovies(page);
+            return processResponse(response, "now-playing", "", page);
+        } catch (Exception e) {
+            log.error("Error fetching Now Playing from TMDb, page: {}. Error: {}", page, e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public List<ExternalMovieData> getUpcoming(int page) {
+        try {
+            log.info("Fetching Upcoming from TMDb, page: {}", page);
+            TmdbPagedResponse<TmdbMovie> response = tmdbClient.getUpcomingMovies(page);
+            return processResponse(response, "upcoming", "", page);
+        } catch (Exception e) {
+            log.error("Error fetching Upcoming from TMDb, page: {}. Error: {}", page, e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    private List<ExternalMovieData> processResponse(TmdbPagedResponse<TmdbMovie> response, String type, String query,
+            int page) {
+        if (response == null || response.getResults() == null) {
+            log.warn("TMDb {} returned null results for query: '{}', page: {}", type, query, page);
+            return Collections.emptyList();
+        }
+
+        int resultCount = response.getResults().size();
+        log.info("TMDb {} successful: query='{}', page={}, results={}, totalResults={}, totalPages={}",
+                type, query, page, resultCount, response.getTotalResults(), response.getTotalPages());
+
+        return mapper.toExternalMovieDataList(response.getResults());
     }
 
     @Override
@@ -97,4 +119,3 @@ public class TmdbMovieDataSource implements MovieDataSource {
         return "TMDb";
     }
 }
-

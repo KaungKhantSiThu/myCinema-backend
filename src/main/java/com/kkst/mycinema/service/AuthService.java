@@ -37,19 +37,8 @@ public class AuthService {
             throw new EmailAlreadyExistsException("Email already registered");
         }
 
-        // Determine role - default to ROLE_USER if not specified
+        // Default to ROLE_USER
         String userRole = "ROLE_USER";
-        if (request.role() != null && !request.role().isBlank()) {
-            // Normalize role (add ROLE_ prefix if not present, convert to uppercase)
-            String normalizedRole = request.role().toUpperCase().trim();
-            if (!normalizedRole.startsWith("ROLE_")) {
-                normalizedRole = "ROLE_" + normalizedRole;
-            }
-            // Only allow USER and ADMIN roles
-            if (normalizedRole.equals("ROLE_ADMIN") || normalizedRole.equals("ROLE_USER")) {
-                userRole = normalizedRole;
-            }
-        }
 
         // Create new user
         var user = User.builder()
@@ -75,6 +64,40 @@ public class AuthService {
                 .name(user.getName())
                 .role(user.getRoles())
                 .message("User registered successfully")
+                .build();
+    }
+
+    @Transactional
+    public AuthResponse createAdmin(RegisterRequest request) {
+        // Check if user already exists
+        if (userRepository.existsByEmail(request.email())) {
+            throw new EmailAlreadyExistsException("Email already registered");
+        }
+
+        // Create new user with ROLE_ADMIN
+        var user = User.builder()
+                .name(request.name())
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .roles("ROLE_ADMIN")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        userRepository.save(user);
+
+        // Generate tokens
+        var accessToken = jwtUtil.generateToken(user.getEmail());
+        var refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
+
+        log.info("Admin created successfully: {}", user.getEmail());
+
+        return AuthResponse.builder()
+                .token(accessToken)
+                .refreshToken(refreshToken)
+                .email(user.getEmail())
+                .name(user.getName())
+                .role(user.getRoles())
+                .message("Admin created successfully")
                 .build();
     }
 

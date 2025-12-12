@@ -54,6 +54,19 @@ public class MovieService {
                 .map(this::mapToResponse);
     }
 
+    @Transactional
+    public MovieResponse createMovie(com.kkst.mycinema.dto.CreateMovieRequest request) {
+        var movie = com.kkst.mycinema.entity.Movie.builder()
+                .title(request.title())
+                .durationMinutes(request.durationMinutes())
+                .genre(request.genre())
+                .description(request.description())
+                .build();
+
+        movie = movieRepository.save(movie);
+        return mapToResponse(movie);
+    }
+
     private MovieResponse mapToResponse(com.kkst.mycinema.entity.Movie movie) {
         return MovieResponse.builder()
                 .id(movie.getId())

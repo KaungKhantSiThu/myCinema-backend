@@ -1,6 +1,7 @@
 package com.kkst.mycinema.controller;
 
 import com.kkst.mycinema.dto.UpdateUserRequest;
+import com.kkst.mycinema.dto.UserResponse;
 import com.kkst.mycinema.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -23,6 +24,19 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current user info", description = "Returns information about the currently authenticated user")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User info retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
+        var userEmail = authentication.getName();
+        var userResponse = userService.getCurrentUser(userEmail);
+        return ResponseEntity.ok(userResponse);
+    }
 
     @PutMapping("/profile")
     @Operation(summary = "Update user profile", description = "Updates user profile information (Name)")

@@ -213,11 +213,22 @@ public class BookingService {
             // We MUST refund or alert.
             log.error("CRITICAL: Payment succeeded but Booking failed for Hold ID: {}. Transaction: {}", holdId,
                     transactionId);
-            // In a real system: paymentService.refund(transactionId) or queue for manual
-            // review.
-            // For this exercise, we will log a clearer error rethrow.
+
+            // AUTOMATIC REFUND IMPLEMENTATION
+            try {
+                log.info("Initiating automatic refund for transaction: {}", transactionId);
+                paymentService.processRefund(transactionId, amount);
+                log.info("Automatic refund successful for transaction: {}", transactionId);
+            } catch (Exception refundEx) {
+                log.error("FATAL: Automatic refund failed for transaction: {}. Manual intervention required!",
+                        transactionId, refundEx);
+                // In a real system, would trigger PagerDuty/Alert here
+            }
+
             throw new BookingFailedAfterPaymentException(
-                    "Booking failed after successful payment. Transaction Ref: " + transactionId, e);
+                    "Booking failed after successful payment. Automatic refund has been initiated. Transaction Ref: "
+                            + transactionId,
+                    e);
         }
     }
 

@@ -105,6 +105,13 @@ public class AdminService {
                         throw new InvalidBookingException("End time must be after start time");
                 }
 
+                // Check for overlapping shows
+                List<Show> overlapping = showRepository.findOverlappingShows(request.hallId(), request.startTime(),
+                                request.endTime());
+                if (!overlapping.isEmpty()) {
+                        throw new ResourceConflictException("Show time overlaps with existing shows in the same hall");
+                }
+
                 var show = Show.builder()
                                 .movie(movie)
                                 .hall(hall)
@@ -216,6 +223,16 @@ public class AdminService {
                 // 4. Update Times
                 if (request.endTime().isBefore(request.startTime())) {
                         throw new InvalidBookingException("End time must be after start time");
+                }
+
+                // Check for overlapping shows (excluding current show)
+                List<Show> overlapping = showRepository.findOverlappingShows(request.hallId(), request.startTime(),
+                                request.endTime());
+                boolean hasOtherOverlaps = overlapping.stream()
+                                .anyMatch(s -> !s.getId().equals(id));
+
+                if (hasOtherOverlaps) {
+                        throw new ResourceConflictException("Show time overlaps with existing shows in the same hall");
                 }
                 show.setStartTime(request.startTime());
                 show.setEndTime(request.endTime());

@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -114,4 +113,3 @@ public class DataSeeder implements CommandLineRunner {
         log.info("Data seeding completed successfully!");
     }
 }
-

@@ -30,87 +30,114 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class MovieImportService {
 
-    private final MovieDataSource movieDataSource;
-    private final MovieRepository movieRepository;
+        private final MovieDataSource movieDataSource;
+        private final MovieRepository movieRepository;
 
-    /**
-     * Search for movies from the external data source.
-     *
-     * @param query the search query
-     * @param page  the page number (1-based)
-     * @return list of external movie search results
-     */
-    public List<ExternalMovieSearchResponse> searchMovies(String query, int page) {
-        log.info("Searching external movies with query: '{}', page: {}", query, page);
+        /**
+         * Search for movies from the external data source.
+         *
+         * @param query the search query
+         * @param page  the page number (1-based)
+         * @return list of external movie search results
+         */
+        public List<ExternalMovieSearchResponse> searchMovies(String query, int page) {
+                log.info("Searching external movies with query: '{}', page: {}", query, page);
 
-        List<ExternalMovieData> results = movieDataSource.searchMovies(query, page);
+                List<ExternalMovieData> results = movieDataSource.searchMovies(query, page);
 
-        log.info("Found {} movies from {}", results.size(), movieDataSource.getSourceName());
+                log.info("Found {} movies from {}", results.size(), movieDataSource.getSourceName());
 
-        return results.stream()
-                .map(this::mapToSearchResponse)
-                .toList();
-    }
+                return results.stream()
+                                .map(this::mapToSearchResponse)
+                                .toList();
+        }
 
-    /**
-     * Import a movie from the external data source into the local database.
-     *
-     * @param request the import request containing external ID and optional genre override
-     * @return the imported movie response
-     */
-    @Transactional
-    @CacheEvict(value = CacheConfig.MOVIES_CACHE, allEntries = true)
-    public MovieResponse importMovie(ImportMovieRequest request) {
-        log.info("Importing movie with external ID: {}", request.externalId());
+        /**
+         * Get now playing movies from external source.
+         * 
+         * @param page page number
+         * @return list of movies
+         */
+        public List<ExternalMovieSearchResponse> getNowPlayingMovies(int page) {
+                log.info("Fetching now playing movies, page: {}", page);
+                return movieDataSource.getNowPlaying(page).stream()
+                                .map(this::mapToSearchResponse)
+                                .toList();
+        }
 
-        ExternalMovieData externalData = movieDataSource.getMovieById(request.externalId())
-                .orElseThrow(() -> new MovieNotFoundException(
-                        "Movie not found in " + movieDataSource.getSourceName() + 
-                        " with ID: " + request.externalId()));
+        /**
+         * Get upcoming movies from external source.
+         * 
+         * @param page page number
+         * @return list of movies
+         */
+        public List<ExternalMovieSearchResponse> getUpcomingMovies(int page) {
+                log.info("Fetching upcoming movies, page: {}", page);
+                return movieDataSource.getUpcoming(page).stream()
+                                .map(this::mapToSearchResponse)
+                                .toList();
+        }
 
-        // Select genre: use provided genre or first from external data
-        String genre = request.genre() != null && !request.genre().isBlank()
-                ? request.genre()
-                : (externalData.genres() != null && !externalData.genres().isEmpty()
-                        ? externalData.genres().get(0)
-                        : "Unknown");
+        /**
+         * Import a movie from the external data source into the local database.
+         *
+         * @param request the import request containing external ID and optional genre
+         *                override
+         * @return the imported movie response
+         */
+        @Transactional
+        @CacheEvict(value = CacheConfig.MOVIES_CACHE, allEntries = true)
+        public MovieResponse importMovie(ImportMovieRequest request) {
+                log.info("Importing movie with external ID: {}", request.externalId());
 
-        Movie movie = Movie.builder()
-                .title(externalData.title())
-                .durationMinutes(externalData.runtime() != null ? externalData.runtime() : 120)
-                .genre(genre)
-                .externalSource(movieDataSource.getSourceName())
-                .externalId(externalData.externalId())
-                .build();
+                ExternalMovieData externalData = movieDataSource.getMovieById(request.externalId())
+                                .orElseThrow(() -> new MovieNotFoundException(
+                                                "Movie not found in " + movieDataSource.getSourceName() +
+                                                                " with ID: " + request.externalId()));
 
-        movie = movieRepository.save(movie);
+                // Select genre: use provided genre or first from external data
+                String genre = request.genre() != null && !request.genre().isBlank()
+                                ? request.genre()
+                                : (externalData.genres() != null && !externalData.genres().isEmpty()
+                                                ? externalData.genres().get(0)
+                                                : "Unknown");
 
-        log.info("Movie imported successfully: {} (ID: {}) from {} (external ID: {})", 
-                movie.getTitle(), movie.getId(), movie.getExternalSource(), movie.getExternalId());
+                Movie movie = Movie.builder()
+                                .title(externalData.title())
+                                .durationMinutes(externalData.runtime() != null ? externalData.runtime() : 120)
+                                .genre(genre)
+                                .externalSource(movieDataSource.getSourceName())
+                                .externalId(externalData.externalId())
+                                .build();
 
-        return mapToMovieResponse(movie);
-    }
+                movie = movieRepository.save(movie);
 
-    private ExternalMovieSearchResponse mapToSearchResponse(ExternalMovieData data) {
-        return ExternalMovieSearchResponse.builder()
-                .externalId(data.externalId())
-                .title(data.title())
-                .overview(data.overview())
-                .releaseDate(data.releaseDate())
-                .runtime(data.runtime())
-                .genres(data.genres())
-                .posterPath(data.posterPath())
-                .voteAverage(data.voteAverage())
-                .source(movieDataSource.getSourceName())
-                .build();
-    }
+                log.info("Movie imported successfully: {} (ID: {}) from {} (external ID: {})",
+                                movie.getTitle(), movie.getId(), movie.getExternalSource(), movie.getExternalId());
 
-    private MovieResponse mapToMovieResponse(Movie movie) {
-        return MovieResponse.builder()
-                .id(movie.getId())
-                .title(movie.getTitle())
-                .durationMinutes(movie.getDurationMinutes())
-                .genre(movie.getGenre())
-                .build();
-    }
+                return mapToMovieResponse(movie);
+        }
+
+        private ExternalMovieSearchResponse mapToSearchResponse(ExternalMovieData data) {
+                return ExternalMovieSearchResponse.builder()
+                                .externalId(data.externalId())
+                                .title(data.title())
+                                .overview(data.overview())
+                                .releaseDate(data.releaseDate())
+                                .runtime(data.runtime())
+                                .genres(data.genres())
+                                .posterPath(data.posterPath())
+                                .voteAverage(data.voteAverage())
+                                .source(movieDataSource.getSourceName())
+                                .build();
+        }
+
+        private MovieResponse mapToMovieResponse(Movie movie) {
+                return MovieResponse.builder()
+                                .id(movie.getId())
+                                .title(movie.getTitle())
+                                .durationMinutes(movie.getDurationMinutes())
+                                .genre(movie.getGenre())
+                                .build();
+        }
 }

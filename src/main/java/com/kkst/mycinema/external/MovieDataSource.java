@@ -5,7 +5,8 @@ import java.util.Optional;
 
 /**
  * Abstraction for external movie data sources.
- * This interface allows the system to be decoupled from specific movie data providers.
+ * This interface allows the system to be decoupled from specific movie data
+ * providers.
  * Implementations can include TMDb, OMDB, or internal database sources.
  */
 public interface MovieDataSource {
@@ -18,6 +19,22 @@ public interface MovieDataSource {
      * @return list of matching movies
      */
     List<ExternalMovieData> searchMovies(String query, int page);
+
+    /**
+     * Get now playing movies.
+     * 
+     * @param page the page number (1-based)
+     * @return list of now playing movies
+     */
+    List<ExternalMovieData> getNowPlaying(int page);
+
+    /**
+     * Get upcoming movies.
+     * 
+     * @param page the page number (1-based)
+     * @return list of upcoming movies
+     */
+    List<ExternalMovieData> getUpcoming(int page);
 
     /**
      * Get detailed movie information by external ID.
