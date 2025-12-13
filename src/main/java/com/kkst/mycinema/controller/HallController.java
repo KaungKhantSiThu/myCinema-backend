@@ -3,7 +3,11 @@ package com.kkst.mycinema.controller;
 import com.kkst.mycinema.dto.HallResponse;
 import com.kkst.mycinema.service.HallService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +31,10 @@ public class HallController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get all halls", description = "Returns a list of all halls (Admin only)")
-    @ApiResponse(responseCode = "200", description = "Halls retrieved successfully")
-    @ApiResponse(responseCode = "403", description = "Access denied")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Halls retrieved successfully", content = @Content(array = @ArraySchema(schema = @Schema(implementation = HallResponse.class)))),
+            @ApiResponse(responseCode = "403", description = "Access denied")
+    })
     public ResponseEntity<List<HallResponse>> getAllHalls() {
         return ResponseEntity.ok(hallService.getAllHalls());
     }

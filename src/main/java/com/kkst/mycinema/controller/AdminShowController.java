@@ -4,6 +4,8 @@ import com.kkst.mycinema.dto.CreateShowRequest;
 import com.kkst.mycinema.dto.ShowResponse;
 import com.kkst.mycinema.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +18,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/shows") // NOTE: Added /api prefix to match other controllers
+@RequestMapping("/api/admin/shows")
 @RequiredArgsConstructor
 @Validated
 @Tag(name = "Admin - Show Management", description = "APIs for managing shows")
@@ -26,10 +28,10 @@ public class AdminShowController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Create a new show")
+    @Operation(summary = "Create a new show", description = "Schedule a new movie showing in a specific hall")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Show created successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid request params"),
+            @ApiResponse(responseCode = "201", description = "Show created successfully", content = @Content(schema = @Schema(implementation = ShowResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request params (e.g. past time)"),
             @ApiResponse(responseCode = "409", description = "Show overlaps with existing show"),
             @ApiResponse(responseCode = "403", description = "Forbidden - admin role required")
     })
@@ -39,9 +41,9 @@ public class AdminShowController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update an existing show")
+    @Operation(summary = "Update an existing show", description = "Update show details (e.g. reschedule)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Show updated successfully"),
+            @ApiResponse(responseCode = "200", description = "Show updated successfully", content = @Content(schema = @Schema(implementation = ShowResponse.class))),
             @ApiResponse(responseCode = "404", description = "Show not found"),
             @ApiResponse(responseCode = "409", description = "Show overlaps with existing show"),
             @ApiResponse(responseCode = "403", description = "Forbidden")
@@ -53,11 +55,11 @@ public class AdminShowController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Delete a show")
+    @Operation(summary = "Delete a show", description = "Remove a show if no bookings exist")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Show deleted successfully"),
             @ApiResponse(responseCode = "404", description = "Show not found"),
-            @ApiResponse(responseCode = "409", description = "Show has confirmed bookings"),
+            @ApiResponse(responseCode = "409", description = "Show has confirmed bookings, cannot delete"),
             @ApiResponse(responseCode = "403", description = "Forbidden")
     })
     public ResponseEntity<Void> deleteShow(@PathVariable Long id) {

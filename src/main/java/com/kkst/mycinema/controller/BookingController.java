@@ -8,6 +8,9 @@ import com.kkst.mycinema.dto.SeatHoldResponse;
 import com.kkst.mycinema.service.BookingService;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -35,6 +38,10 @@ public class BookingController {
 
         @GetMapping
         @Operation(summary = "Get user bookings", description = "Retrieves booking history for the authenticated user")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Bookings retrieved successfully", content = @Content(array = @ArraySchema(schema = @Schema(implementation = BookingResponse.class)))),
+                        @ApiResponse(responseCode = "401", description = "Not authenticated")
+        })
         public ResponseEntity<List<BookingResponse>> getUserBookings(Authentication authentication) {
                 var userEmail = authentication.getName();
                 return ResponseEntity.ok(bookingService.getUserBookings(userEmail));
@@ -46,7 +53,7 @@ public class BookingController {
                         +
                         "Held seats are automatically released if not confirmed.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Seats held successfully"),
+                        @ApiResponse(responseCode = "200", description = "Seats held successfully", content = @Content(schema = @Schema(implementation = SeatHoldResponse.class))),
                         @ApiResponse(responseCode = "409", description = "Seats already held or booked"),
                         @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
         })
@@ -64,7 +71,7 @@ public class BookingController {
                         +
                         "Must be called before hold expires. Sends confirmation email on success.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "201", description = "Booking confirmed and payment processed successfully"),
+                        @ApiResponse(responseCode = "201", description = "Booking confirmed and payment processed successfully", content = @Content(schema = @Schema(implementation = BookingResponse.class))),
                         @ApiResponse(responseCode = "400", description = "Hold expired or invalid"),
                         @ApiResponse(responseCode = "402", description = "Payment failed"),
                         @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
@@ -76,7 +83,6 @@ public class BookingController {
                 var response = bookingService.confirmHoldWithPayment(request, userEmail);
                 return ResponseEntity.status(HttpStatus.CREATED).body(response);
         }
-
 
         @DeleteMapping("/hold/{holdToken}")
         @Operation(summary = "Release held seats", description = "Releases seats that were previously held, making them available again.")
@@ -99,7 +105,7 @@ public class BookingController {
                         "Uses optimistic locking to prevent double-booking. " +
                         "Consider using /hold + /confirm for better UX.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "201", description = "Booking created successfully"),
+                        @ApiResponse(responseCode = "201", description = "Booking created successfully", content = @Content(schema = @Schema(implementation = BookingResponse.class))),
                         @ApiResponse(responseCode = "409", description = "Seats already booked by another user"),
                         @ApiResponse(responseCode = "400", description = "Invalid request"),
                         @ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
@@ -114,7 +120,7 @@ public class BookingController {
 
         @GetMapping("/my-bookings")
         @Operation(summary = "Get user bookings", description = "Retrieves all bookings made by the authenticated user, ordered by booking time (newest first)")
-        @ApiResponse(responseCode = "200", description = "List of bookings retrieved successfully")
+        @ApiResponse(responseCode = "200", description = "List of bookings retrieved successfully", content = @Content(array = @ArraySchema(schema = @Schema(implementation = BookingResponse.class))))
         public ResponseEntity<List<BookingResponse>> getMyBookings(Authentication authentication) {
                 var userEmail = authentication.getName();
                 return ResponseEntity.ok(bookingService.getUserBookings(userEmail));
@@ -149,7 +155,7 @@ public class BookingController {
         @DeleteMapping("/{bookingId}")
         @Operation(summary = "Cancel a booking", description = "Cancels a booking and releases the seats. Must be done at least 24 hours before show time.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Booking cancelled successfully"),
+                        @ApiResponse(responseCode = "200", description = "Booking cancelled successfully", content = @Content(schema = @Schema(implementation = CancellationResponse.class))),
                         @ApiResponse(responseCode = "400", description = "Cannot cancel within 24 hours of show time"),
                         @ApiResponse(responseCode = "403", description = "Can only cancel own bookings"),
                         @ApiResponse(responseCode = "404", description = "Booking not found")

@@ -4,6 +4,8 @@ import com.kkst.mycinema.dto.AuthResponse;
 import com.kkst.mycinema.dto.RegisterRequest;
 import com.kkst.mycinema.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +31,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a new admin", description = "Creates a new user with ROLE_ADMIN. Only accessible by existing admins.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Admin created successfully"),
+            @ApiResponse(responseCode = "201", description = "Admin created successfully", content = @Content(schema = @Schema(implementation = AuthResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request"),
             @ApiResponse(responseCode = "403", description = "Forbidden - requires ADMIN role"),
             @ApiResponse(responseCode = "409", description = "Email already registered")
